@@ -1,0 +1,8 @@
+crinkler.exe
+*.pdb
+*.obj
+*.ilk
+*.log
+*.tlog
+*.lastbuildstate
+*.cache
