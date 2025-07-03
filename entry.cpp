@@ -1,14 +1,18 @@
 #pragma once
 
+#include <cmath>
 #include <windows.h>
 #include <wingdi.h>
 #include <winuser.h>
-
-#pragma comment(lib, "opengl32.lib")
-#pragma comment(linker, "/ENTRY:entry")
-#pragma comment(linker, "/SUBSYSTEM:WINDOWS")
+#include <mmsystem.h>
 #include <gl/gl.h>
 #include <gl/GLU.h>
+
+#pragma comment(lib, "opengl32.lib")
+#pragma comment(lib, "winmm.lib")
+#pragma comment(linker, "/ENTRY:entry")
+#pragma comment(linker, "/SUBSYSTEM:WINDOWS")
+
 
 #define WIN_STYLE_FULLSCREEN (WS_POPUP | WS_VISIBLE)
 #define WIN_STYLE_WINDOWED   (WS_OVERLAPPEDWINDOW | WS_VISIBLE)
@@ -91,12 +95,26 @@ extern "C" void entry() {
 	HGLRC rc = wglCreateContext(dc);
 	wglMakeCurrent(dc, rc);
 
-	for (int i = 0; i < 300; i++) {
+	long startTime = timeGetTime();
+	long currentTime;
+	long introEnd = 10000;
+	float t;
 
-		glClearColor(0.0f, 0.2f, 0.2f, 1.0f);
+	do {
+		currentTime = timeGetTime() - startTime;
+		t = currentTime / 1000.0f;
+		float red = sinf(t * 3.14159265);
+		glClearColor(red, 0.2f, 0.2f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		SwapBuffers(dc);
-	}
+
+
+		Sleep(10);
+	}while (!(GetAsyncKeyState(VK_ESCAPE) & 0x8000) && currentTime < introEnd);
+
+
+
+
 
 	#ifndef DEBUG_BUILD
 		ChangeDisplaySettingsA(NULL, 0);

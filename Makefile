@@ -3,7 +3,7 @@ LINK = link
 CRINKLER = crinkler
 
 COMMON_FLAGS = /nologo /GS-
-LIBS = kernel32.lib user32.lib gdi32.lib opengl32.lib
+LIBS = kernel32.lib user32.lib gdi32.lib opengl32.lib winmm.lib
 
 SOURCE_FILES =  entry.cpp
 OBJ_FILES = entry.obj
