@@ -2,7 +2,7 @@ COMPILER = cl
 LINK = link
 CRINKLER = crinkler
 
-COMMON_FLAGS = /nologo /GS- /Zl
+COMMON_FLAGS = /nologo /GS-
 LIBS = kernel32.lib user32.lib gdi32.lib opengl32.lib
 
 SOURCE_FILES =  entry.cpp
@@ -12,7 +12,7 @@ TARGET_FILE_DEBUG = intro_debug.exe
 TARGET_FILE_RELEASE = intro.exe
 
 COMPILER_FLAGS_DEBUG = /Od /Zi /DDEBUG_BUILD
-COMPILER_FLAGS_RELEASE = /O1 /DRELEASE_BUILD
+COMPILER_FLAGS_RELEASE = /O1 /Zl /DRELEASE_BUILD
 
 LINK_FLAGS_DEBUG = /SUBSYSTEM:WINDOWS /ENTRY:entry
 

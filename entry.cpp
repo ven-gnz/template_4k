@@ -1,6 +1,8 @@
 #pragma once
 
 #include <windows.h>
+#include <wingdi.h>
+#include <winuser.h>
 
 #pragma comment(lib, "opengl32.lib")
 #pragma comment(linker, "/ENTRY:entry")
@@ -16,10 +18,25 @@
 	#define SCREENYRES 768
 	#define WIN_STYLE WIN_STYLE_WINDOWED
 #else
-	#define SCREENXRES 1920
-	#define SCREENYRES 1080
+	#define SCREENXRES 3840
+	#define SCREENYRES 2160
 	#define WIN_STYLE WIN_STYLE_FULLSCREEN
 #endif
+
+
+#ifndef DEBUG_BUILD
+void SetFullScreenMode()
+{
+	DEVMODE dev_mode = {0};
+	dev_mode.dmSize = sizeof(dev_mode);
+	dev_mode.dmPelsHeight = SCREENXRES;
+	dev_mode.dmPelsHeight = SCREENYRES;
+	dev_mode.dmBitsPerPel = 32;
+	dev_mode.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_BITSPERPEL;
+	ChangeDisplaySettings(&dev_mode, CDS_FULLSCREEN);
+}
+#endif
+
 
 float vertices[] = {
 	-0.5f, -0.5f, 0.0f,
@@ -61,7 +78,9 @@ extern "C" void entry() {
 	wc.lpszClassName = "a";
 
 	RegisterClassA(&wc);
-
+	#ifndef DEBUG_BUILD
+		SetFullScreenMode();
+	#endif
 
 	HWND hwnd = CreateWindowExA(0, "a", 0, WIN_STYLE, 0, 0, SCREENXRES, SCREENYRES, 0, 0, wc.hInstance, 0);
 	HDC dc = GetDC(hwnd);
@@ -73,11 +92,15 @@ extern "C" void entry() {
 	wglMakeCurrent(dc, rc);
 
 	for (int i = 0; i < 300; i++) {
-		float blueValue = 0.2f;
-		glClearColor(0.0f, 0.2f, 0.2f+ i*30, 1.0f);
+
+		glClearColor(0.0f, 0.2f, 0.2f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		SwapBuffers(dc);
 	}
+
+	#ifndef DEBUG_BUILD
+		ChangeDisplaySettingsA(NULL, 0);
+	#endif
 
 	ExitProcess(0);
 
