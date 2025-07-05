@@ -6,3 +6,5 @@ crinkler.exe
 *.tlog
 *.lastbuildstate
 *.cache
+glext.h
+khrplatform.h
