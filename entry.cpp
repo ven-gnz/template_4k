@@ -5,13 +5,21 @@
 #include <wingdi.h>
 #include <winuser.h>
 #include <mmsystem.h>
+
 #include <gl/gl.h>
 #include <gl/GLU.h>
+#include "glext.h"
+#include "gl_loader.h"
 
 #pragma comment(lib, "opengl32.lib")
 #pragma comment(lib, "winmm.lib")
+
 #pragma comment(linker, "/ENTRY:entry")
 #pragma comment(linker, "/SUBSYSTEM:WINDOWS")
+
+extern void render(float t);
+extern void setupScene();
+
 
 
 #define WIN_STYLE_FULLSCREEN (WS_POPUP | WS_VISIBLE)
@@ -40,13 +48,6 @@ void SetFullScreenMode()
 	ChangeDisplaySettings(&dev_mode, CDS_FULLSCREEN);
 }
 #endif
-
-
-float vertices[] = {
-	-0.5f, -0.5f, 0.0f,
-	 0.5f, -0.5f, 0.0f,
-	 0.0f,  0.5f, 0.0f
-};
 
 
 static const PIXELFORMATDESCRIPTOR pfd =
@@ -95,21 +96,41 @@ extern "C" void entry() {
 	HGLRC rc = wglCreateContext(dc);
 	wglMakeCurrent(dc, rc);
 
+	if (!LoadGLExtensions()) {
+		MessageBoxA(0, "OpenGL Extensions not loaded", "Error", MB_OK | MB_ICONERROR);
+		ExitProcess(1);
+	}
+
+	
+
 	long startTime = timeGetTime();
 	long currentTime;
 	long introEnd = 10000;
 	float t;
 
+	const int frameTargetMS = 16;
+
+	setupScene();
+
+
 	do {
+		DWORD frameStart = timeGetTime();
+
 		currentTime = timeGetTime() - startTime;
 		t = currentTime / 1000.0f;
-		float red = sinf(t * 3.14159265);
-		glClearColor(red, 0.2f, 0.2f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+
+		render(t);
+
+
 		SwapBuffers(dc);
 
+		DWORD frameTime = timeGetTime() - frameStart;
+		if (frameTime < frameTargetMS)
+		{
+			Sleep(frameTargetMS - frameTime);
+		}
 
-		Sleep(10);
+
 	}while (!(GetAsyncKeyState(VK_ESCAPE) & 0x8000) && currentTime < introEnd);
 
 

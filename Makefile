@@ -5,8 +5,8 @@ CRINKLER = crinkler
 COMMON_FLAGS = /nologo /GS-
 LIBS = kernel32.lib user32.lib gdi32.lib opengl32.lib winmm.lib
 
-SOURCE_FILES =  entry.cpp
-OBJ_FILES = entry.obj
+SOURCE_FILES =  entry.cpp intro.cpp gl_loader.cpp
+OBJ_FILES = entry.obj intro.obj gl_loader.obj
 
 TARGET_FILE_DEBUG = intro_debug.exe
 TARGET_FILE_RELEASE = intro.exe
@@ -26,7 +26,7 @@ clean:
 
 debug: clean
 	$(COMPILER) $(COMMON_FLAGS) $(COMPILER_FLAGS_DEBUG) /c $(SOURCE_FILES)
-	$(LINK) $(OBJ_FILES) $(LIBS) /OUT:$(TARGET_FILE_DEBUG) $(LINK_FLAGS_DEBUG)
+	$(LINK) $(OBJ_FILES) $(LIBS) /Fe:$(TARGET_FILE_DEBUG) $(LINK_FLAGS_DEBUG)
 
 release: clean
 	$(COMPILER) $(COMMON_FLAGS) $(COMPILER_FLAGS_RELEASE) /c $(SOURCE_FILES)
