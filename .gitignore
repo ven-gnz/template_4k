@@ -1,4 +1,5 @@
 crinkler.exe
+.vs
 *.pdb
 *.obj
 *.ilk
