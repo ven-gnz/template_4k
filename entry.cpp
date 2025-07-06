@@ -22,7 +22,7 @@ extern void setupScene();
 
 
 
-#define WIN_STYLE_FULLSCREEN (WS_POPUP | WS_VISIBLE)
+#define WIN_STYLE_FULLSCREEN (WS_POPUP | WS_VISIBLE | WS_MAXIMIZE)
 #define WIN_STYLE_WINDOWED   (WS_OVERLAPPEDWINDOW | WS_VISIBLE)
 
 #ifdef DEBUG_BUILD
@@ -30,8 +30,8 @@ extern void setupScene();
 	#define SCREENYRES 768
 	#define WIN_STYLE WIN_STYLE_WINDOWED
 #else
-	#define SCREENXRES 3840
-	#define SCREENYRES 2160
+	#define SCREENXRES 1920
+	#define SCREENYRES 1080
 	#define WIN_STYLE WIN_STYLE_FULLSCREEN
 #endif
 
@@ -89,6 +89,7 @@ extern "C" void entry() {
 
 	HWND hwnd = CreateWindowExA(0, "a", 0, WIN_STYLE, 0, 0, SCREENXRES, SCREENYRES, 0, 0, wc.hInstance, 0);
 	HDC dc = GetDC(hwnd);
+	ShowCursor(0);
 
 	int fmt = ChoosePixelFormat(dc, &pfd);
 	SetPixelFormat(dc, fmt, &pfd);
@@ -141,6 +142,7 @@ extern "C" void entry() {
 		ChangeDisplaySettingsA(NULL, 0);
 	#endif
 
+		ShowCursor(1);
 	ExitProcess(0);
 
 }

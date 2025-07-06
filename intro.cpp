@@ -2,7 +2,7 @@
 
 #include <Windows.h>
 #include <gl/gl.h>
-#include <cmath>
+#include <math.h>
 #include "gl_loader.h"
 
 GLuint VAO;
@@ -80,7 +80,7 @@ void setupScene()
 
 void render(float t)
 {
-	float red = std::sin(static_cast<double>(t) * 3.14159265);
+	float red = sin(static_cast<double>(t) * 3.14159265);
 
 
 	glClearColor(red, 0.2f, 0.2f, 1.0f);
