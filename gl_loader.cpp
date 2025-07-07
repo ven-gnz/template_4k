@@ -17,7 +17,12 @@ static const char* gl_function_names[NUM_GL_FUNCS] = {
     "glEnableVertexAttribArray",
     "glDeleteShader",
     "glGenVertexArrays",
-    "glBindVertexArray"
+    "glBindVertexArray",
+    "glGetAttribLocation",
+    "glGetUniformLocation",
+    "glUniform1f",
+    "glUniform2f",
+    "glGetProgramiv"
 };
 
 bool LoadGLExtensions() {

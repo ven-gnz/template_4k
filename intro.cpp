@@ -4,31 +4,26 @@
 #include <gl/gl.h>
 #include <math.h>
 #include "gl_loader.h"
+#include "shader.frag"
+#include "entry.cpp"
 
 GLuint VAO;
 GLuint VBO;
 GLuint shaderProgram;
+GLint iTimeLoc, iResolutionLoc;
 
 
 float vertices[] = {
-	-0.5f, -0.5f, 0.0f,
-	 0.5f, -0.5f, 0.0f,
-	 0.0f,  0.5f, 0.0f
+    -1.0f, -1.0f,
+     3.0f, -1.0f,
+    -1.0f,  3.0f
 };
 
 const char* vertexShaderSrc = R"(
         #version 130
-        in vec3 position;
+        in vec2 position;
         void main() {
-            gl_Position = vec4(position, 1.0);
-        }
-    )";
-
-const char* fragmentShaderSrc = R"(
-        #version 130
-        out vec4 fragColor;
-        void main() {
-            fragColor = vec4(1, 1, 1, 1); // white color
+            gl_Position = vec4(position, 0.0, 1.0);
         }
     )";
 
@@ -44,8 +39,9 @@ GLuint compileShader(GLenum type, const char* source)
 
 GLuint createShaderProgram(const char* vertexSource, const char* shaderSource)
 {
-    GLuint vs = compileShader(GL_VERTEX_SHADER, vertexShaderSrc);
-    GLuint fs = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSrc);
+    
+    GLuint vs = compileShader(GL_VERTEX_SHADER, vertexSource);
+    GLuint fs = compileShader(GL_FRAGMENT_SHADER, shaderSource);
 
     GLuint shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vs);
@@ -67,10 +63,14 @@ void setupScene()
     glBindBuffer(GL_ARRAY_BUFFER,VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    shaderProgram = createShaderProgram(vertexShaderSrc, embeddedFragmentShader);
 
-    shaderProgram = createShaderProgram(vertexShaderSrc, fragmentShaderSrc);
+    GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+
+    iTimeLoc = glGetUniformLocation(shaderProgram, "iTime");
+    iResolutionLoc = glGetUniformLocation(shaderProgram, "iResolution");
 
 }
 
@@ -80,15 +80,16 @@ void setupScene()
 
 void render(float t)
 {
-	float red = sin(static_cast<double>(t) * 3.14159265);
 
-
-	glClearColor(red, 0.2f, 0.2f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
-
     glUseProgram(shaderProgram);
+
+
+    glUniform1f(iTimeLoc, t);
+    glUniform2f(iResolutionLoc, (float)SCREENXRES, (float)SCREENYRES);
+
     glBindVertexArray(VAO);
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 	
 }

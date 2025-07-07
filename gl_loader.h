@@ -10,7 +10,7 @@
 #include "glext.h"
 
 
-#define NUM_GL_FUNCS 15
+#define NUM_GL_FUNCS 20
 
 extern void* gl_ext_functions[NUM_GL_FUNCS];
 
@@ -31,6 +31,11 @@ bool LoadGLExtensions();
 #define glDeleteShader            ((PFNGLDELETESHADERPROC)gl_ext_functions[12])
 #define glGenVertexArrays         ((PFNGLGENVERTEXARRAYSPROC)gl_ext_functions[13])
 #define glBindVertexArray         ((PFNGLBINDVERTEXARRAYPROC)gl_ext_functions[14])
+#define glGetAttribLocation      ((PFNGLGETATTRIBLOCATIONPROC)gl_ext_functions[15])
+#define glGetUniformLocation     ((PFNGLGETUNIFORMLOCATIONPROC)gl_ext_functions[16])
+#define glUniform1f              ((PFNGLUNIFORM1FPROC)gl_ext_functions[17])
+#define glUniform2f              ((PFNGLUNIFORM2FPROC)gl_ext_functions[18])
+#define glGetProgramiv           ((PFNGLGETPROGRAMIVPROC)gl_ext_functions[19])
 
 #endif
 
