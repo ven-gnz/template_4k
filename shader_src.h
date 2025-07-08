@@ -1,3 +1,6 @@
+#pragma once
+
+const char* fragmentShaderSrc = R"GLSL(
 #version 130
 uniform float iTime;
 uniform vec2 iResolution;
@@ -29,3 +32,5 @@ void main() {
 
    fragColor = vec4(color, 1.0);
 }
+
+)GLSL";

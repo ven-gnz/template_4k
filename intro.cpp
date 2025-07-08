@@ -4,7 +4,7 @@
 #include <gl/gl.h>
 #include <math.h>
 #include "gl_loader.h"
-#include "shader.frag"
+#include "shader_src.h"
 #include "entry.cpp"
 
 GLuint VAO;
@@ -63,7 +63,7 @@ void setupScene()
     glBindBuffer(GL_ARRAY_BUFFER,VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    shaderProgram = createShaderProgram(vertexShaderSrc, embeddedFragmentShader);
+    shaderProgram = createShaderProgram(vertexShaderSrc, fragmentShaderSrc);
 
     GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
     glEnableVertexAttribArray(0);

@@ -1,6 +1,10 @@
+PYTHON = py
 COMPILER = cl
 LINK = link
 CRINKLER = crinkler
+
+shader_src.h: shader.frag embed_shader.py
+	$(PYTHON) embed_shader.py
 
 COMMON_FLAGS = /nologo /GS-
 LIBS = kernel32.lib user32.lib gdi32.lib opengl32.lib winmm.lib
@@ -28,6 +32,6 @@ debug: clean
 	$(COMPILER) $(COMMON_FLAGS) $(COMPILER_FLAGS_DEBUG) /c $(SOURCE_FILES)
 	$(LINK) $(OBJ_FILES) $(LIBS) /Fe:$(TARGET_FILE_DEBUG) $(LINK_FLAGS_DEBUG)
 
-release: clean
+release: shader_src.h clean
 	$(COMPILER) $(COMMON_FLAGS) $(COMPILER_FLAGS_RELEASE) /c $(SOURCE_FILES)
 	$(CRINKLER) $(OBJ_FILES) /OUT:$(TARGET_FILE_RELEASE) $(CRINKLER_FLAGS) $(LIBS)
