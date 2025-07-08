@@ -1,4 +1,4 @@
-crinkler.exe
+*.exe
 .vs
 *.pdb
 *.obj
@@ -10,3 +10,4 @@ crinkler.exe
 glext.h
 khrplatform.h
 OFF
+shader_src.h
