@@ -9,3 +9,4 @@ crinkler.exe
 *.cache
 glext.h
 khrplatform.h
+OFF

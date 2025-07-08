@@ -1,10 +1,10 @@
 PYTHON = py
 COMPILER = cl
-LINK = link
 CRINKLER = crinkler
 
-shader_src.h: shader.frag embed_shader.py
-	$(PYTHON) embed_shader.py
+
+prepare: shader.frag prepare_shader.py
+	$(PYTHON) prepare_shader.py
 
 COMMON_FLAGS = /nologo /GS-
 LIBS = kernel32.lib user32.lib gdi32.lib opengl32.lib winmm.lib
@@ -18,9 +18,8 @@ TARGET_FILE_RELEASE = intro.exe
 COMPILER_FLAGS_DEBUG = /Od /Zi /MDd /DDEBUG_BUILD
 COMPILER_FLAGS_RELEASE = /O1 /Zl /DRELEASE_BUILD
 
-LINK_FLAGS_DEBUG = /SUBSYSTEM:WINDOWS /ENTRY:entry /VERBOSE
-
-CRINKLER_FLAGS = /ENTRY:entry /SUBSYSTEM:WINDOWS /COMPMODE:SLOW /ORDERTRIES:5000 /UNSAFEIMPORT
+CRINKLER_FLAGS_DEBUG = /ENTRY:entry /SUBSYSTEM:WINDOWS /COMPMODE:INSTANT /REPORT:OFF
+CRINKLER_FLAGS_RELEASE = /ENTRY:entry /SUBSYSTEM:WINDOWS /COMPMODE:SLOW /ORDERTRIES:5000 /UNSAFEIMPORT
 
 all: release
 
@@ -28,10 +27,10 @@ clean:
 	for %%f in (*.exe) do if /I not "%%f"=="crinkler.exe" del "%%f"
 	del /Q *.obj *.pdb *.ilk
 
-debug: clean
+debug: prepare clean
 	$(COMPILER) $(COMMON_FLAGS) $(COMPILER_FLAGS_DEBUG) /c $(SOURCE_FILES)
-	$(LINK) $(OBJ_FILES) $(LIBS) /Fe:$(TARGET_FILE_DEBUG) $(LINK_FLAGS_DEBUG)
+	$(CRINKLER) $(OBJ_FILES) $(LIBS) /OUT:$(TARGET_FILE_DEBUG) $(CRINKLER_FLAGS_DEBUG) $(LIBS)
 
-release: shader_src.h clean
+release: prepare clean
 	$(COMPILER) $(COMMON_FLAGS) $(COMPILER_FLAGS_RELEASE) /c $(SOURCE_FILES)
-	$(CRINKLER) $(OBJ_FILES) /OUT:$(TARGET_FILE_RELEASE) $(CRINKLER_FLAGS) $(LIBS)
+	$(CRINKLER) $(OBJ_FILES) /OUT:$(TARGET_FILE_RELEASE) $(CRINKLER_FLAGS_RELEASE) $(LIBS)
