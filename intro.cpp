@@ -10,7 +10,7 @@
 GLuint VAO;
 GLuint VBO;
 GLuint shaderProgram;
-GLint iTimeLoc, iResolutionLoc;
+GLint iTime, iResolution;
 
 
 float vertices[] = {
@@ -69,8 +69,8 @@ void setupScene()
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
 
-    iTimeLoc = glGetUniformLocation(shaderProgram, "iTime");
-    iResolutionLoc = glGetUniformLocation(shaderProgram, "iResolution");
+    iTime = glGetUniformLocation(shaderProgram, "iTime");
+    iResolution = glGetUniformLocation(shaderProgram, "iResolution");
 
 }
 
@@ -84,9 +84,8 @@ void render(float t)
 	glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(shaderProgram);
 
-
-    glUniform1f(iTimeLoc, t);
-    glUniform2f(iResolutionLoc, (float)SCREENXRES, (float)SCREENYRES);
+    glUniform1f(iTime, t);
+    glUniform2f(iResolution, (float)SCREENXRES, (float)SCREENYRES);
 
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
