@@ -1,4 +1,5 @@
 *.exe
+!crinkler.exe
 .vs
 *.pdb
 *.obj
@@ -7,7 +8,4 @@
 *.tlog
 *.lastbuildstate
 *.cache
-glext.h
-khrplatform.h
-OFF
 shader_src.h
