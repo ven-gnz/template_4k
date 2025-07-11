@@ -106,7 +106,7 @@ extern "C" void entry() {
 
 	long startTime = timeGetTime();
 	long currentTime;
-	long introEnd = 10000;
+	long introEnd = 90000;
 	float t;
 
 	const int frameTargetMS = 16;
