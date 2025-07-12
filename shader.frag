@@ -5,6 +5,12 @@ out vec4 fragColor;
 // world origin (0,0,0)
 
 
+
+float spPlane(vec3 p, vec3 n, float h)
+{
+	return dot(p,n) + h;
+}
+
 float sdSphere(vec3 p, float s)
 {
 	return length(p)-s;
@@ -25,24 +31,13 @@ float smin(float a, float b, float k)
 }
 
 
-
-float map(vec3 p) {
-
-	vec3 spherePos = vec3(sin(iTime)*3,0,0);
-	float sphere = sdSphere(p- spherePos, 1.);
-	float box = sdBox(p, vec3(.75));
-
-	float ground = p.y + 0.4;
-
-	return smin(ground, smin(sphere, box, 2.), 1.);
-}
-
-
 vec2 mapScene(vec3 p)
 {
-	vec3 spherePos = vec3(0,0,0);
-	float d = sdSphere(p - spherePos, 1.0);
-	return vec2(d, 1.0);
+	vec3 spherePos = vec3(0,1,0);
+	float sphere = sdSphere(p - spherePos, 1.0);
+	float plane = spPlane(p, vec3(0,1,0), 0.0);
+	if(sphere < plane) return vec2(sphere, 1.0);
+	return vec2(plane,2.0);
 
 }
 
@@ -95,6 +90,27 @@ vec3 computeLight(vec3 p, vec3 n, vec3 lightPos)
 }
 
 
+bool isInShadow(vec3 p, vec3 n, vec3 lightPos)
+{
+	vec3 dir = normalize(lightPos - p);
+	float maxd = length(lightPos - p);
+	float t = 0.01;
+	for(int i = 0; i < 40; i++)
+	{
+
+		vec3 pos = p + dir * t;
+		float d = mapScene(pos).x;
+		if(d < 0.001) return true;
+		t += d * clamp(1.0 / t, 0.5, 1.0);
+		if(t >= maxd) break;
+
+	}
+
+	return false;
+
+}
+
+
 
 
 void main() {
@@ -102,7 +118,7 @@ void main() {
 	//the texture coordinates
 	vec2 uv = (gl_FragCoord.xy * 2- iResolution.xy) /iResolution.y;
 
-	vec3 ro = vec3(0,0,-3);
+	vec3 ro = vec3(0,1.0,-4.0);
 	vec3 rd = normalize(vec3(uv,1));
 	float materialID;
 	vec3 hitPos;
@@ -110,14 +126,28 @@ void main() {
 
 
 	float t = marchRay(ro, rd, hitPos, materialID);
-
-	if(materialID > 0.0)
+	vec3 normal = estimateNormal(hitPos);
+	vec3 lightPos = vec3(sin(iTime), 3, 0);
+	if(materialID == 1.0) //aka sphere
 	{
-		vec3 normal = estimateNormal(hitPos);
-		vec3 lightPos = vec3(sin(iTime), 2.0, -2.0);
-		color = computeLight(hitPos, normal, lightPos);
+		
+		if(!isInShadow(hitPos, normal, lightPos))
+		{
+			color = computeLight(hitPos, normal, lightPos);
+		}
+	}
+	else if(materialID == 2.0) //aka plane
+	{
+		if(!isInShadow(hitPos, normal, lightPos))
+		{
+			color = vec3(0.4);
+		}
+		else{
+			color = vec3(0.2);
+		}
 
 	}
+
 
 
     fragColor = vec4(color, 1.0);
