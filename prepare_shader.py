@@ -5,7 +5,7 @@ def make_inl(shader_path, output_path):
         lines = f.readlines()
 
     with open(output_path, 'w') as out:
-        out.write('static const char* fragmentShader = \\\n')
+        out.write('const char *shader_frag = \\\n')
         for line in lines:
             line = line.rstrip().replace('\\', '\\\\').replace('"', '\\"')
             out.write(f'"{line}\\n"\n')

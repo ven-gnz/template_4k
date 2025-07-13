@@ -6,6 +6,9 @@ CRINKLER = crinkler
 prepare: shader.frag prepare_shader.py
 	$(PYTHON) prepare_shader.py
 
+minify:
+	shader_minifier.exe shader.frag -o shader.inl --format c-variables
+
 COMMON_FLAGS = /nologo /GS-
 LIBS = kernel32.lib user32.lib gdi32.lib opengl32.lib winmm.lib
 
@@ -24,13 +27,12 @@ CRINKLER_FLAGS_RELEASE = /ENTRY:entry /SUBSYSTEM:WINDOWS /COMPMODE:SLOW /ORDERTR
 all: release
 
 clean:
-	for %%f in (*.exe) do if /I not "%%f"=="crinkler.exe" del "%%f"
 	del /Q *.obj *.pdb *.ilk
 
 debug: prepare clean
 	$(COMPILER) $(COMMON_FLAGS) $(COMPILER_FLAGS_DEBUG) /c $(SOURCE_FILES)
 	$(CRINKLER) $(OBJ_FILES) $(LIBS) /OUT:$(TARGET_FILE_DEBUG) $(CRINKLER_FLAGS_DEBUG) $(LIBS)
 
-release: prepare clean
+release: minify clean
 	$(COMPILER) $(COMMON_FLAGS) $(COMPILER_FLAGS_RELEASE) /c $(SOURCE_FILES)
 	$(CRINKLER) $(OBJ_FILES) /OUT:$(TARGET_FILE_RELEASE) $(CRINKLER_FLAGS_RELEASE) $(LIBS)

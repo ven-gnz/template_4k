@@ -11,7 +11,9 @@
 #define YRES 1080
 
 #pragma comment(lib, "opengl32.lib")
-#pragma comment(lib, "winmm.lib")  // for timeGetTime
+#pragma comment(lib, "winmm.lib")  
+
+extern const char* shader_frag;
 
 
 static const PIXELFORMATDESCRIPTOR pfd =
@@ -67,7 +69,7 @@ extern "C" void entry(void)
     //wglSwapLayerBuffers( hDC, WGL_SWAP_MAIN_PLANE ); //SwapBuffers( hDC );
 
     // init intro
-    const unsigned int fsId = ((PFNGLCREATESHADERPROGRAMVPROC)wglGetProcAddress("glCreateShaderProgramv"))(GL_FRAGMENT_SHADER, 1, &fragmentShader);
+    const unsigned int fsId = ((PFNGLCREATESHADERPROGRAMVPROC)wglGetProcAddress("glCreateShaderProgramv"))(GL_FRAGMENT_SHADER, 1, &shader_frag);
     ((PFNGLUSEPROGRAMPROC)wglGetProcAddress("glUseProgram"))(fsId);
 
 	typedef GLint(APIENTRY* PFNGLGETUNIFORMLOCATIONPROC)(GLuint, const char*);
@@ -78,8 +80,8 @@ extern "C" void entry(void)
 	auto glUniform1f = (PFNGLUNIFORM1FPROC)wglGetProcAddress("glUniform1f");
 	auto glUniform2f = (PFNGLUNIFORM2FPROC)wglGetProcAddress("glUniform2f");
 
-	GLint iTimeLoc = glGetUniformLocation(fsId, "iTime");
-	GLint iResolutionLoc = glGetUniformLocation(fsId, "iResolution");
+	GLint iTimeLoc = glGetUniformLocation(fsId, VAR_iTime);
+	GLint iResolutionLoc = glGetUniformLocation(fsId, VAR_iResolution);
 	glUniform2f(iResolutionLoc, (float)XRES, (float)YRES);
 
     MSG msg;
