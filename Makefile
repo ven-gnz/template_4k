@@ -9,8 +9,8 @@ prepare: shader.frag prepare_shader.py
 COMMON_FLAGS = /nologo /GS-
 LIBS = kernel32.lib user32.lib gdi32.lib opengl32.lib winmm.lib
 
-SOURCE_FILES =  entry.cpp intro.cpp gl_loader.cpp
-OBJ_FILES = entry.obj intro.obj gl_loader.obj
+SOURCE_FILES = main.cpp
+OBJ_FILES = main.obj
 
 TARGET_FILE_DEBUG = intro_debug.exe
 TARGET_FILE_RELEASE = intro.exe

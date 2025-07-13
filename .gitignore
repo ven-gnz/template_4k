@@ -8,4 +8,4 @@
 *.tlog
 *.lastbuildstate
 *.cache
-shader_src.h
+shader.inl
