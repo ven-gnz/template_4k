@@ -6,6 +6,7 @@
 #include <math.h>
 #include "glext.h"
 #include "shader.inl"
+#include "audio.inl"
 
 #define XRES 1920
 #define YRES 1080
@@ -91,12 +92,14 @@ extern "C" void entry(void)
 	const int frameTargetMS = 16;
 	const DWORD introEnd = 90000;
 
+	fillAudio();
+	playAudio();
 
 	do {
 
 		PeekMessage(&msg, hWnd, 0, 0, PM_REMOVE);
 
-		float iTime = (timeGetTime() - startTime) * 0.001f;
+		iTime = (timeGetTime() - startTime) * 0.001f;
 		glUniform1f(iTimeLoc, iTime);
 
 		glRects(-1, -1, 1, 1);
