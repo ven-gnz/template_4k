@@ -4,7 +4,18 @@ uniform vec2 iResolution;
 out vec4 fragColor;
 // world origin (0,0,0)
 
+float dot2(vec2 v) { return dot(v, v); }
 
+float sdCappedCone( vec3 p, float h, float r1, float r2 )
+{
+  vec2 q = vec2( length(p.xz), p.y );
+  vec2 k1 = vec2(r2,h);
+  vec2 k2 = vec2(r2-r1,2.0*h);
+  vec2 ca = vec2(q.x-min(q.x,(q.y<0.0)?r1:r2), abs(q.y)-h);
+  vec2 cb = q - k1 + k2*clamp( dot(k1-q,k2)/dot(k2,k2), 0.0, 1.0 );
+  float s = (cb.x<0.0 && ca.y<0.0) ? -1.0 : 1.0;
+  return s * sqrt(min(dot2(ca), dot2(cb)));
+}
 
 float spPlane(vec3 p, vec3 n, float h)
 {
@@ -16,7 +27,7 @@ float sdSphere(vec3 p, float s)
 	return length(p)-s;
 }
 
-float sdBox(vec3 p, vec3 b) 
+float sdBox(vec3 p, vec3 b)
 {
 	vec3 q = abs(p)-b;
 	return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
@@ -33,11 +44,16 @@ float smin(float a, float b, float k)
 
 vec2 mapScene(vec3 p)
 {
-	vec3 spherePos = vec3(0,1,0);
-	float sphere = sdSphere(p - spherePos, 1.0);
-	float plane = spPlane(p, vec3(0,1,0), 0.0);
-	if(sphere < plane) return vec2(sphere, 1.0);
-	return vec2(plane,2.0);
+
+	float plane = spPlane(p, normalize(vec3(0,1,0)), 0.0);
+	float h = 1.5;
+	float r1 = 1.2;
+	float r2 = 0.2;
+	vec3 c = vec3(0.0, h*0.5, 0.0);
+	float volcano = sdCappedCone(p-c, h, r1, r2);
+
+	if(volcano < plane) return vec2(volcano, 1.0);
+	return vec2(plane, 2.0);
 
 }
 
@@ -47,7 +63,7 @@ float marchRay(vec3 ro, vec3 rd, out vec3 hitPos, out float materialID)
 {
 	float t = 0.0;
 
-	for(int i = 0; i < 60; i++)
+	for(int i = 0; i < 100; i++)
 	{
 		vec3 p = ro + rd * t;
 		vec2 scene = mapScene(p);
@@ -66,7 +82,7 @@ float marchRay(vec3 ro, vec3 rd, out vec3 hitPos, out float materialID)
 
 }
 
-vec3 estimateNormal(vec3 p) 
+vec3 estimateNormal(vec3 p)
 {
 	float h = 0.001;
 	vec2 e = vec2(1.0, -1.0) * h;
@@ -75,7 +91,7 @@ vec3 estimateNormal(vec3 p)
 	e.xyy * mapScene(p + e.xyy).x +
 	e.yyx * mapScene(p + e.yyx).x +
 	e.yxy * mapScene(p + e.yxy).x +
-	e.xxx * mapScene(p + e.xxx).x 
+	e.xxx * mapScene(p + e.xxx).x
 	);
 
 }
@@ -128,9 +144,8 @@ void main() {
 	float t = marchRay(ro, rd, hitPos, materialID);
 	vec3 normal = estimateNormal(hitPos);
 	vec3 lightPos = vec3(sin(iTime), 3, 0);
-	if(materialID == 1.0) //aka sphere
+	if(materialID == 1.0)
 	{
-		
 		if(!isInShadow(hitPos, normal, lightPos))
 		{
 			color = computeLight(hitPos, normal, lightPos);
