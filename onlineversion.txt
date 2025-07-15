@@ -1,0 +1,129 @@
+//shadertoy template for prototyping - courtesy of chat gpt based on my shader
+
+float dot2(vec2 v) { return dot(v, v); }
+
+float sdCappedCone(vec3 p, float h, float r1, float r2)
+{
+    vec2 q = vec2(length(p.xz), p.y);
+    vec2 k1 = vec2(r2, h);
+    vec2 k2 = vec2(r2 - r1, 2.0 * h);
+    vec2 ca = vec2(q.x - min(q.x, (q.y < 0.0) ? r1 : r2), abs(q.y) - h);
+    vec2 cb = q - k1 + k2 * clamp(dot(k1 - q, k2) / dot(k2, k2), 0.0, 1.0);
+    float s = (cb.x < 0.0 && ca.y < 0.0) ? -1.0 : 1.0;
+    return s * sqrt(min(dot2(ca), dot2(cb)));
+}
+
+float spPlane(vec3 p, vec3 n, float h)
+{
+    return dot(p, n) + h;
+}
+
+vec2 mapScene(vec3 p)
+{
+    float h = 1.5;       // Cone height
+    float r1 = 1.2;      // Bottom radius
+    float r2 = 0.2;      // Top radius
+
+    vec3 coneCenter = vec3(0.0, h * 0.5, 0.0);
+    float volcano = sdCappedCone(p - coneCenter, h, r1, r2);
+    float plane = spPlane(p, vec3(0, 1, 0), 0.0);
+
+    if (volcano < plane) return vec2(volcano, 1.0);
+    return vec2(plane, 2.0);
+}
+
+float marchRay(vec3 ro, vec3 rd, out vec3 hitPos, out float matID)
+{
+    float t = 0.0;
+    for (int i = 0; i < 100; i++)
+    {
+        vec3 p = ro + rd * t;
+        vec2 scene = mapScene(p);
+        float d = scene.x;
+        if (d < 0.001)
+        {
+            hitPos = p;
+            matID = scene.y;
+            return t;
+        }
+        if (t > 100.0) break;
+        t += d;
+    }
+    matID = -1.0;
+    return t;
+}
+
+vec3 estimateNormal(vec3 p)
+{
+    float eps = 0.001;
+    vec2 e = vec2(1.0, -1.0) * eps;
+    return normalize(
+        e.xyy * mapScene(p + e.xyy).x +
+        e.yyx * mapScene(p + e.yyx).x +
+        e.yxy * mapScene(p + e.yxy).x +
+        e.xxx * mapScene(p + e.xxx).x
+    );
+}
+
+vec3 computeLight(vec3 p, vec3 n, vec3 lightPos)
+{
+    vec3 lightColor = vec3(1.0, 0.0, 0.0);
+    vec3 lightDir = normalize(lightPos - p);
+    float diff = max(dot(n, lightDir), 0.0);
+    return lightColor * diff;
+}
+
+bool isInShadow(vec3 p, vec3 n, vec3 lightPos)
+{
+    vec3 dir = normalize(lightPos - p);
+    float maxDist = length(lightPos - p);
+    float t = 0.01;
+    for (int i = 0; i < 40; i++)
+    {
+        vec3 pos = p + dir * t;
+        float d = mapScene(pos).x;
+        if (d < 0.001) return true;
+        t += d * clamp(1.0 / t, 0.5, 1.0);
+        if (t >= maxDist) break;
+    }
+    return false;
+}
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord)
+{
+    vec2 uv = (fragCoord * 2.0 - iResolution.xy) / iResolution.y;
+
+    vec3 ro = vec3(0, 1.0, -4.0);
+    vec3 rd = normalize(vec3(uv, 1));
+
+    vec3 hitPos;
+    float matID;
+    vec3 col = vec3(0.0);
+
+    float t = marchRay(ro, rd, hitPos, matID);
+    if (matID > 0.0)
+    {
+        vec3 n = estimateNormal(hitPos);
+        vec3 lightPos = vec3(sin(iTime), 3.0, 0.0);
+
+        // Ambient
+        vec3 ambient = vec3(0.05);
+
+        if (matID == 1.0)
+        {
+            vec3 rockColor = vec3(0.3, 0.3, 0.35);
+            vec3 light = computeLight(hitPos, n, lightPos);
+            if (!isInShadow(hitPos, n, lightPos))
+                col = rockColor * light + ambient;
+            else
+                col = rockColor * ambient;
+        }
+        else if (matID == 2.0)
+        {
+            vec3 groundColor = vec3(0.15);
+            col = isInShadow(hitPos, n, lightPos) ? groundColor * 0.5 : groundColor + ambient;
+        }
+    }
+
+    fragColor = vec4(col, 1.0);
+}
