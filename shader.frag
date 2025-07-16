@@ -4,6 +4,24 @@ uniform vec2 iResolution;
 out vec4 fragColor;
 // world origin (0,0,0)
 
+
+struct Material {
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float shininess;
+};
+
+
+struct Light {
+vec3 pos;
+vec3 ambient;
+vec3 diffuse;
+vec3 specular;
+};
+
+
+
 float dot2(vec2 v) { return dot(v, v); }
 
 float sdCappedCone( vec3 p, float h, float r1, float r2 )
@@ -59,7 +77,7 @@ vec2 mapScene(vec3 p)
 
 
 
-float marchRay(vec3 ro, vec3 rd, out vec3 hitPos, out float materialID)
+float marchRay(vec3 ro, vec3 rd, out vec3 hitPos, out float matID)
 {
 	float t = 0.0;
 
@@ -68,16 +86,16 @@ float marchRay(vec3 ro, vec3 rd, out vec3 hitPos, out float materialID)
 		vec3 p = ro + rd * t;
 		vec2 scene = mapScene(p);
 		float dist = scene.x;
-		if(dist < 0.001) {
+		if(dist < 0.0001) {
 			hitPos = p;
-			materialID = scene.y;
+			matID = scene.y;
 			return t;
 		}
 		if (t > 100.0) break;
 		t += dist;
 
 	}
-	materialID = -1.0; // classic c trope, I dunno man
+	matID = -1.0; // classic c trope, I dunno man
 	return t;
 
 }
@@ -96,15 +114,22 @@ vec3 estimateNormal(vec3 p)
 
 }
 
-vec3 computeLight(vec3 p, vec3 n, vec3 lightPos)
+vec3 computeLight(vec3 p, vec3 n, vec3 lightPos, Material mat, Light light)
 {
-	vec3 lightColor = vec3(1.0, 0.0, 0.0);
-	vec3 lightDir = normalize(lightPos - p);
-	float diff = max(dot(n, lightDir), 0.0);
-	return lightColor * diff;
+   
+    vec3 lightDir = normalize(lightPos - p);
+    vec3 viewDir = normalize(-p);
+    vec3 reflectDir = reflect(-lightDir, n);
 
+    float diff = max(dot(n, lightDir), 0.0);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), mat.shininess);
+
+    vec3 ambient  = light.ambient  * mat.ambient;
+    vec3 diffuse  = light.diffuse  * mat.diffuse * diff;
+    vec3 specular = light.specular * mat.specular * spec;
+
+    return ambient + diffuse + specular;
 }
-
 
 bool isInShadow(vec3 p, vec3 n, vec3 lightPos)
 {
@@ -116,12 +141,11 @@ bool isInShadow(vec3 p, vec3 n, vec3 lightPos)
 
 		vec3 pos = p + dir * t;
 		float d = mapScene(pos).x;
-		if(d < 0.001) return true;
+		if(d < 0.0001) return true;
 		t += d * clamp(1.0 / t, 0.5, 1.0);
 		if(t >= maxd) break;
 
 	}
-
 	return false;
 
 }
@@ -134,26 +158,41 @@ void main() {
 	//the texture coordinates
 	vec2 uv = (gl_FragCoord.xy * 2- iResolution.xy) /iResolution.y;
 
+	Material obsidian = Material(
+    vec3(0.05375,0.05,0.06625),
+    vec3(0.18275,0.17,0.22525),
+    vec3(0.332741,0.328634,0.346435),
+    38.4);
+        
+        Light magma = Light(
+    vec3(sin(iTime), 3.0, 0.0),        
+    vec3(0.1, 0.02, 0.01),                   
+    vec3(1.0, 0.3, 0.1),                     
+    vec3(1.0, 0.6, 0.3));
+
+
+
 	vec3 ro = vec3(0,1.0,-4.0);
 	vec3 rd = normalize(vec3(uv,1));
-	float materialID;
+	float matID;
 	vec3 hitPos;
 	vec3 color = vec3(0);
 
 
-	float t = marchRay(ro, rd, hitPos, materialID);
-	vec3 normal = estimateNormal(hitPos);
+	float t = marchRay(ro, rd, hitPos, matID);
+	vec3 n = estimateNormal(hitPos);
 	vec3 lightPos = vec3(sin(iTime), 3, 0);
-	if(materialID == 1.0)
+	if(matID == 1.0) // obsidian cone
 	{
-		if(!isInShadow(hitPos, normal, lightPos))
-		{
-			color = computeLight(hitPos, normal, lightPos);
-		}
+		vec3 lit = computeLight(hitPos, n, lightPos, obsidian, magma);
+        float shadow = isInShadow(hitPos, n, lightPos) ? 0.0 : 1.0;
+        color = obsidian.ambient + shadow * (lit - obsidian.ambient);
 	}
-	else if(materialID == 2.0) //aka plane
+
+
+	else if(matID == 2.0) //aka plane
 	{
-		if(!isInShadow(hitPos, normal, lightPos))
+		if(!isInShadow(hitPos, n, lightPos))
 		{
 			color = vec3(0.4);
 		}
