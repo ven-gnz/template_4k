@@ -20,6 +20,12 @@ vec3 diffuse;
 vec3 specular;
 };
 
+float opSmoothSubtraction( float d1, float d2, float k )
+{
+    float h = clamp( 0.5 - 0.5*(d2+d1)/k, 0.0, 1.0 );
+    return mix( d2, -d1, h ) + k*h*(1.0-h);
+}
+
 
 
 float dot2(vec2 v) { return dot(v, v); }
@@ -40,39 +46,58 @@ float spPlane(vec3 p, vec3 n, float h)
 	return dot(p,n) + h;
 }
 
-float sdSphere(vec3 p, float s)
-{
-	return length(p)-s;
+float crater(vec3 p, vec3 center, float r) {
+    return length(p - center) - r;
 }
 
-float sdBox(vec3 p, vec3 b)
-{
-	vec3 q = abs(p)-b;
-	return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
 
+
+float noiseFunc(vec3 p) {
+    return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
 }
 
-float smin(float a, float b, float k)
-{
-	float h = max(k-abs(a-b), 0.0) / k;
-	return min(a,b) - h*h*k*k*(1.0/6.0);
+float craterNoise(vec3 p) {
+    float n = noiseFunc(p * 100.0);   
+    return smoothstep(0.3, 0.5, n);
+}
 
+float volcanofunc(vec3 p)
+{
+
+    float h = 1.0;       // Cone height
+    float r1 = 2.0;      // Bottom radius
+    float r2 = 1.0;      // Top radius
+
+    vec3 coneCenter = vec3(0.0, h * 0.5, 0.0);
+    float v = sdCappedCone(p - coneCenter, h, r1, r2);
+    
+    for (int i = 0; i < 19; i++) {
+     float angle = float(i) / 19.0 * 6.2831;
+    float heightRatio = noiseFunc(vec3(angle, 1.0, 1.0));
+    float craterHeight = mix(0.1, h, heightRatio);
+    float localRadius = mix(r1, r2, craterHeight / h);
+    
+    float radius = mix(0.05, 0.3, noiseFunc(vec3(angle * 10.0, 0.0, 3.11)));
+
+    vec3 craterPos = coneCenter 
+                   + vec3(cos(angle), 0.0, sin(angle)) * localRadius 
+                   + vec3(0.0, craterHeight - h * 0.5, 0.0);
+    
+    float c = crater(p, craterPos, radius);
+    v = opSmoothSubtraction(c,v,0.3);
+    
+    }
+    
+    return v;
 }
 
 
 vec2 mapScene(vec3 p)
 {
-
-	float plane = spPlane(p, normalize(vec3(0,1,0)), 0.0);
-	float h = 1.5;
-	float r1 = 1.2;
-	float r2 = 0.2;
-	vec3 c = vec3(0.0, h*0.5, 0.0);
-	float volcano = sdCappedCone(p-c, h, r1, r2);
-
-	if(volcano < plane) return vec2(volcano, 1.0);
-	return vec2(plane, 2.0);
-
+    float volcano = volcanofunc(p);
+    float plane = spPlane(p, vec3(0, 1, 0), 0.0);
+    if (volcano < plane) return vec2(volcano, 1.0);
+    return vec2(plane, 2.0);
 }
 
 
@@ -114,15 +139,18 @@ vec3 estimateNormal(vec3 p)
 
 }
 
-vec3 computeLight(vec3 p, vec3 n, vec3 lightPos, Material mat, Light light)
+vec3 computeLight(vec3 p, vec3 n, Material mat, Light light, vec3 ro) 
 {
-   
-    vec3 lightDir = normalize(lightPos - p);
-    vec3 viewDir = normalize(-p);
+    //blinn phong as a try for less jaggies
+    vec3 lightDir = normalize(light.pos - p);
+    
+    vec3 viewDir = normalize(ro-p);
+    
+    vec3 halfV = normalize(vec3(lightDir + viewDir));
     vec3 reflectDir = reflect(-lightDir, n);
 
     float diff = max(dot(n, lightDir), 0.0);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), mat.shininess);
+    float spec = pow(max(dot(halfV, reflectDir), 0.0), mat.shininess);
 
     vec3 ambient  = light.ambient  * mat.ambient;
     vec3 diffuse  = light.diffuse  * mat.diffuse * diff;
@@ -150,6 +178,40 @@ bool isInShadow(vec3 p, vec3 n, vec3 lightPos)
 
 }
 
+vec3 calculateRO(float t, float r, float h)
+{
+    
+    float angle = 0.2*t;
+    float x = cos(angle)*r;
+    float y = h;
+    float z = sin(angle)*r;
+    return vec3(x,y,z);
+    
+}
+
+mat3 lookAt(vec3 ro, vec3 target, vec3 uV)
+{
+    vec3 front = normalize(target-ro);
+    vec3 right = normalize(cross(front,uV));
+    vec3 up = cross(right, front);
+    return mat3(right,up,front);
+
+
+}
+
+vec3 visualizeNormals(vec3 n, vec3 baseColor) {
+
+    vec3 light1 = normalize(vec3(0.6, 0.7, 0.5));  
+    vec3 light2 = normalize(vec3(-0.6, 0.5, -0.7));
+    
+    float diff1 = clamp(dot(n, light1), 0.0, 1.0);
+    float diff2 = clamp(dot(n, light2), 0.0, 1.0);
+
+    float lighting = max(diff1, diff2);
+    return baseColor * (0.4 + 0.6 * lighting);
+  
+}
+
 
 
 
@@ -164,45 +226,58 @@ void main() {
     vec3(0.332741,0.328634,0.346435),
     38.4);
         
-        Light magma = Light(
+    Light magma = Light(
     vec3(sin(iTime), 3.0, 0.0),        
     vec3(0.1, 0.02, 0.01),                   
     vec3(1.0, 0.3, 0.1),                     
     vec3(1.0, 0.6, 0.3));
 
 
+    vec3 ro = calculateRO(iTime, 3.0 ,1.0);
+    vec3 target = vec3(0.0, 1.0, 0.0);
+    mat3 cam = lookAt(ro, target, vec3(0.0,1.0,0.0));
+    vec3 rd = cam * normalize(vec3(uv,1.0));
+    
 
-	vec3 ro = vec3(0,1.0,-4.0);
-	vec3 rd = normalize(vec3(uv,1));
-	float matID;
-	vec3 hitPos;
-	vec3 color = vec3(0);
+    vec3 hitPos;
+    float matID;
+    vec3 col = vec3(0.0);
 
+    float t = marchRay(ro, rd, hitPos, matID);
+    
+    
+    
+    
+        if (matID == 1.0) {
+        
+        vec3 n = estimateNormal(hitPos);
+        col = visualizeNormals(n, vec3(0.7,0.7,0.7));
+                
+        } else {
+                col = vec3(0.1,0.1,0.1);            
+                }
+        
+        /* first we try to get a better geometry
+        if (matID > 0.0)
+        {
+        vec3 n = estimateNormal(hitPos);
+        
+        vec3 ambient = vec3(0.1);
 
-	float t = marchRay(ro, rd, hitPos, matID);
-	vec3 n = estimateNormal(hitPos);
-	vec3 lightPos = vec3(sin(iTime), 3, 0);
-	if(matID == 1.0) // obsidian cone
-	{
-		vec3 lit = computeLight(hitPos, n, lightPos, obsidian, magma);
-        float shadow = isInShadow(hitPos, n, lightPos) ? 0.0 : 1.0;
-        color = obsidian.ambient + shadow * (lit - obsidian.ambient);
-	}
-
-
-	else if(matID == 2.0) //aka plane
-	{
-		if(!isInShadow(hitPos, n, lightPos))
-		{
-			color = vec3(0.4);
-		}
-		else{
-			color = vec3(0.2);
-		}
-
-	}
-
-
-
-    fragColor = vec4(color, 1.0);
+        if (matID == 1.0)
+        {
+           
+            vec3 lit = computeLight(hitPos, n, obsidian, magma, ro);
+            float shadow = isInShadow(hitPos, n, magma.pos) ? 0.0 : 1.0;
+            col = obsidian.ambient + shadow * (lit - obsidian.ambient);
+        }
+        else if (matID == 2.0)
+        {
+            vec3 groundColor = vec3(0.15);
+            col = isInShadow(hitPos, n, magma.pos) ? groundColor * 0.5 : groundColor + ambient;
+        }
+    }
+    */
+    
+     fragColor = vec4(col, 1.0);
 }

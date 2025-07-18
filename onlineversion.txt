@@ -16,6 +16,8 @@ vec3 specular;
 };
 
 
+
+
 float opSmoothSubtraction( float d1, float d2, float k )
 {
     float h = clamp( 0.5 - 0.5*(d2+d1)/k, 0.0, 1.0 );
@@ -57,23 +59,27 @@ float sdCappedCone(vec3 p, float h, float r1, float r2)
 float volcanofunc(vec3 p)
 {
 
-    float h = 1.5;       // Cone height
-    float r1 = 3.0;      // Bottom radius
-    float r2 = 1.5;      // Top radius
+    float h = 1.0;       // Cone height
+    float r1 = 2.0;      // Bottom radius
+    float r2 = 1.0;      // Top radius
 
     vec3 coneCenter = vec3(0.0, h * 0.5, 0.0);
     float v = sdCappedCone(p - coneCenter, h, r1, r2);
     
     for (int i = 0; i < 19; i++) {
-    float angle = float(i) / float(19) * 6.2831;
-    float noise = noiseFunc(vec3(angle * 10.0, 0.0, 3.11));
-    float radius = mix(0.05, 0.3, noise);
+     float angle = float(i) / 19.0 * 6.2831;
+    float heightRatio = noiseFunc(vec3(angle, 1.0, 1.0));
+    float craterHeight = mix(0.1, h, heightRatio);
+    float localRadius = mix(r1, r2, craterHeight / h);
+    
+    float radius = mix(0.05, 0.3, noiseFunc(vec3(angle * 10.0, 0.0, 3.11)));
 
-    float yOffset = mix(0.1, 1.5, noiseFunc(vec3(angle, 1.0, 0.0)));
-    vec3 craterPos = coneCenter + vec3(cos(angle), 0.0, sin(angle)) * 2.0 + vec3(0.0, yOffset, 0.0);
-
+    vec3 craterPos = coneCenter 
+                   + vec3(cos(angle), 0.0, sin(angle)) * localRadius 
+                   + vec3(0.0, craterHeight - h * 0.5, 0.0);
+    
     float c = crater(p, craterPos, radius);
-    v = opSmoothSubtraction(c,v,0.5);
+    v = opSmoothSubtraction(c,v,0.3);
     
     }
     
@@ -93,12 +99,12 @@ vec2 mapScene(vec3 p)
 float marchRay(vec3 ro, vec3 rd, out vec3 hitPos, out float matID)
 {
     float t = 0.0;
-    for (int i = 0; i < 100; i++)
+    for (int i = 0; i < 180; i++)
     {
         vec3 p = ro + rd * t;
         vec2 scene = mapScene(p);
         float d = scene.x;
-        if (d < 0.0001)
+        if (d < 0.00005)
         {
             hitPos = p;
             matID = scene.y;
@@ -113,7 +119,7 @@ float marchRay(vec3 ro, vec3 rd, out vec3 hitPos, out float matID)
 
 vec3 estimateNormal(vec3 p)
 {
-    float eps = 0.001;
+    float eps = 0.0001;
     vec2 e = vec2(1.0, -1.0) * eps;
     return normalize(
         e.xyy * mapScene(p + e.xyy).x +
@@ -123,15 +129,18 @@ vec3 estimateNormal(vec3 p)
     );
 }
 
-vec3 computeLight(vec3 p, vec3 n, Material mat, Light light)
+vec3 computeLight(vec3 p, vec3 n, Material mat, Light light, vec3 ro) 
 {
-    
+    //blinn phong as a try for less jaggies
     vec3 lightDir = normalize(light.pos - p);
-    vec3 viewDir = normalize(-p);
+    
+    vec3 viewDir = normalize(ro-p);
+    
+    vec3 halfV = normalize(vec3(lightDir + viewDir));
     vec3 reflectDir = reflect(-lightDir, n);
 
     float diff = max(dot(n, lightDir), 0.0);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), mat.shininess);
+    float spec = pow(max(dot(halfV, reflectDir), 0.0), mat.shininess);
 
     vec3 ambient  = light.ambient  * mat.ambient;
     vec3 diffuse  = light.diffuse  * mat.diffuse * diff;
@@ -156,34 +165,87 @@ bool isInShadow(vec3 p, vec3 n, vec3 lightPos)
     return false;
 }
 
+
+
+vec3 calculateRO(float t, float r, float h)
+{
+    
+    float angle = 0.2*t;
+    float x = cos(angle)*r;
+    float y = h;
+    float z = sin(angle)*r;
+    return vec3(x,y,z);
+    
+}
+
+
+mat3 lookAt(vec3 ro, vec3 target, vec3 uV)
+{
+    vec3 front = normalize(target-ro);
+    vec3 right = normalize(cross(front,uV));
+    vec3 up = cross(right, front);
+    return mat3(right,up,front);
+
+
+}
+
+vec3 visualizeNormals(vec3 n, vec3 baseColor) {
+
+    vec3 light1 = normalize(vec3(0.6, 0.7, 0.5));  
+    vec3 light2 = normalize(vec3(-0.6, 0.5, -0.7));
+    
+    float diff1 = clamp(dot(n, light1), 0.0, 1.0);
+    float diff2 = clamp(dot(n, light2), 0.0, 1.0);
+
+    float lighting = max(diff1, diff2);
+    return baseColor * (0.4 + 0.6 * lighting);
+  
+}
+
 void mainImage(out vec4 fragColor, in vec2 fragCoord)
 {
 
-    Material obsidian = Material(
+        Material obsidian = Material(
         vec3(0.05375,0.05,0.06625),
         vec3(0.18275,0.17,0.22525),
         vec3(0.332741,0.328634,0.346435),
-        38.4);
+        22.4);
         
         Light magma = Light(
-    vec3(cos(iTime) * 6.0, 3.0, sin(iTime)*6.0),        
-    vec3(0.1, 0.02, 0.01),                   
-    vec3(1.0, 0.3, 0.1),                     
-    vec3(1.0, 0.6, 0.3));
+        vec3(0.0, 2.0, -1.0),        
+        vec3(0.15, 0.1, 0.05),                   
+        vec3(1.0, 0.3, 0.1),                     
+        vec3(1.0, 0.6, 0.3));
         
         
     vec2 uv = (fragCoord * 2.0 - iResolution.xy) / iResolution.y;
-
-    vec3 ro = vec3(0, 1.0, -4.0);
-    vec3 rd = normalize(vec3(uv, 1));
+    vec3 ro = calculateRO(iTime, 3.0 ,1.0);
+    vec3 target = vec3(0.0, 1.0, 0.0);
+    mat3 cam = lookAt(ro, target, vec3(0.0,1.0,0.0));
+    vec3 rd = cam * normalize(vec3(uv,1.0));
+    
 
     vec3 hitPos;
     float matID;
     vec3 col = vec3(0.0);
 
     float t = marchRay(ro, rd, hitPos, matID);
-    if (matID > 0.0)
-    {
+    
+    
+    
+    
+        if (matID == 1.0) {
+        
+        vec3 n = estimateNormal(hitPos);
+        col = visualizeNormals(n, vec3(0.7,0.7,0.7));
+                
+        } else {
+                col = vec3(0.1,0.1,0.1);            
+                }
+        
+        /* first we try to get a better geometry
+        if (matID > 0.0)
+        {
         vec3 n = estimateNormal(hitPos);
         
         vec3 ambient = vec3(0.1);
@@ -191,7 +253,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
         if (matID == 1.0)
         {
            
-            vec3 lit = computeLight(hitPos, n, obsidian, magma);
+            vec3 lit = computeLight(hitPos, n, obsidian, magma, ro);
             float shadow = isInShadow(hitPos, n, magma.pos) ? 0.0 : 1.0;
             col = obsidian.ambient + shadow * (lit - obsidian.ambient);
         }
@@ -201,6 +263,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
             col = isInShadow(hitPos, n, magma.pos) ? groundColor * 0.5 : groundColor + ambient;
         }
     }
-
-    fragColor = vec4(col, 1.0);
+    */
+    
+     fragColor = vec4(col, 1.0);
 }
