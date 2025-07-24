@@ -5,6 +5,8 @@ out vec4 fragColor;
 // world origin (0,0,0)
 
 
+float dot2(vec2 v) { return dot(v, v); }
+
 struct Material {
     vec3 ambient;
     vec3 diffuse;
@@ -20,6 +22,7 @@ vec3 diffuse;
 vec3 specular;
 };
 
+
 float opSmoothSubtraction( float d1, float d2, float k )
 {
     float h = clamp( 0.5 - 0.5*(d2+d1)/k, 0.0, 1.0 );
@@ -27,30 +30,14 @@ float opSmoothSubtraction( float d1, float d2, float k )
 }
 
 
-
-float dot2(vec2 v) { return dot(v, v); }
-
-float sdCappedCone( vec3 p, float h, float r1, float r2 )
-{
-  vec2 q = vec2( length(p.xz), p.y );
-  vec2 k1 = vec2(r2,h);
-  vec2 k2 = vec2(r2-r1,2.0*h);
-  vec2 ca = vec2(q.x-min(q.x,(q.y<0.0)?r1:r2), abs(q.y)-h);
-  vec2 cb = q - k1 + k2*clamp( dot(k1-q,k2)/dot(k2,k2), 0.0, 1.0 );
-  float s = (cb.x<0.0 && ca.y<0.0) ? -1.0 : 1.0;
-  return s * sqrt(min(dot2(ca), dot2(cb)));
-}
-
 float spPlane(vec3 p, vec3 n, float h)
 {
-	return dot(p,n) + h;
+    return dot(p, n) + h;
 }
 
 float crater(vec3 p, vec3 center, float r) {
     return length(p - center) - r;
 }
-
-
 
 float noiseFunc(vec3 p) {
     return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
@@ -60,6 +47,19 @@ float craterNoise(vec3 p) {
     float n = noiseFunc(p * 100.0);   
     return smoothstep(0.3, 0.5, n);
 }
+
+float sdCappedCone(vec3 p, float h, float r1, float r2)
+{
+ 
+    vec2 q = vec2(length(p.xz), p.y);
+    vec2 k1 = vec2(r2, h);
+    vec2 k2 = vec2(r2 - r1, 2.0 * h);
+    vec2 ca = vec2(q.x - min(q.x, (q.y < 0.0) ? r1 : r2), abs(q.y) - h);
+    vec2 cb = q - k1 + k2 * clamp(dot(k1 - q, k2) / dot(k2, k2), 0.0, 1.0);
+    float s = (cb.x < 0.0 && ca.y < 0.0) ? -1.0 : 1.0;
+    return s * sqrt(min(dot2(ca), dot2(cb)));
+}
+
 
 float volcanofunc(vec3 p)
 {
@@ -91,52 +91,93 @@ float volcanofunc(vec3 p)
     return v;
 }
 
-
-vec2 mapScene(vec3 p)
+float parametricVolcanoFunc(vec3 p, vec3 volcanoCenter, vec3 volcanoDimensions, float seed)
 {
-    float volcano = volcanofunc(p);
-    float plane = spPlane(p, vec3(0, 1, 0), 0.0);
-    if (volcano < plane) return vec2(volcano, 1.0);
-    return vec2(plane, 2.0);
+    
+    
+    float h = volcanoDimensions.x;
+    float r1 = volcanoDimensions.y;
+    float r2 = volcanoDimensions.z;
+
+    float v = sdCappedCone(p-volcanoCenter, h, r1, r2);
+    
+    for (int i = 0; i < 19; i++) {
+        float angle = float(i) / 19.0 * 6.2831;
+        float heightRatio = noiseFunc(vec3(angle, 1.0, 1.0));
+        float craterHeight = mix(0.1, h, heightRatio);
+        float localRadius = mix(r1, r2, craterHeight / h);
+    
+        float radius = mix(0.05, 0.3, noiseFunc(vec3(angle * 10.0, 0.0, seed)));
+
+        vec3 craterPos = volcanoCenter 
+                       + vec3(cos(angle), 0.0, sin(angle)) * localRadius 
+                       + vec3(0.0, craterHeight - h * 0.5, 0.0);
+    
+        float c = crater(p, craterPos, radius);
+        v = opSmoothSubtraction(c,v,0.3);
+    
+    }
+    return v;
+
 }
 
 
 
+vec2 mapScene(vec3 p)
+{
+    vec3 volcano1Dim = vec3(1.25, 2.0, 1.0); 
+    vec3 volcano1Loc = vec3(-0.6, volcano1Dim.y*0.5, -0.1); // the center of the cone SDF derived from place and dimensions
+
+    vec3 volcano2Dim = vec3(1.25, 1.75, 1.2);
+    vec3 volcano2Loc = vec3(0.7, volcano2Dim.y*0.5, 0.3);
+    
+    
+    float volcano1 = parametricVolcanoFunc(p,volcano1Loc, volcano1Dim, 4.45);
+    float volcano2 = parametricVolcanoFunc(p,volcano2Loc, volcano2Dim, 3.33);
+    float plane = spPlane(p, vec3(0, 0.1, 0), 0.0);
+    
+    vec2 v1 = vec2(volcano1, 1.0);
+    vec2 v2 = vec2(volcano2, 1.0);
+    vec2 pl = vec2(plane, 3.0);
+  
+    
+    vec2 scene = (v1.x < v2.x) ? v1 : v2;
+    scene = (pl.x < scene.x) ? pl : scene;
+
+    return scene;
+}
+
 float marchRay(vec3 ro, vec3 rd, out vec3 hitPos, out float matID)
 {
-	float t = 0.0;
-
-	for(int i = 0; i < 100; i++)
-	{
-		vec3 p = ro + rd * t;
-		vec2 scene = mapScene(p);
-		float dist = scene.x;
-		if(dist < 0.0001) {
-			hitPos = p;
-			matID = scene.y;
-			return t;
-		}
-		if (t > 100.0) break;
-		t += dist;
-
-	}
-	matID = -1.0; // classic c trope, I dunno man
-	return t;
-
+    float t = 0.0;
+    for (int i = 0; i < 180; i++)
+    {
+        vec3 p = ro + rd * t;
+        vec2 scene = mapScene(p);
+        float d = scene.x;
+        if (d < 0.00005)
+        {
+            hitPos = p;
+            matID = scene.y;
+            return t;
+        }
+        if (t > 100.0) break;
+        t += d;
+    }
+    matID = -1.0;
+    return t;
 }
 
 vec3 estimateNormal(vec3 p)
 {
-	float h = 0.001;
-	vec2 e = vec2(1.0, -1.0) * h;
-
-	return normalize(
-	e.xyy * mapScene(p + e.xyy).x +
-	e.yyx * mapScene(p + e.yyx).x +
-	e.yxy * mapScene(p + e.yxy).x +
-	e.xxx * mapScene(p + e.xxx).x
-	);
-
+    float eps = 0.0001;
+    vec2 e = vec2(1.0, -1.0) * eps;
+    return normalize(
+        e.xyy * mapScene(p + e.xyy).x +
+        e.yyx * mapScene(p + e.yyx).x +
+        e.yxy * mapScene(p + e.yxy).x +
+        e.xxx * mapScene(p + e.xxx).x
+    );
 }
 
 vec3 computeLight(vec3 p, vec3 n, Material mat, Light light, vec3 ro) 
@@ -161,22 +202,21 @@ vec3 computeLight(vec3 p, vec3 n, Material mat, Light light, vec3 ro)
 
 bool isInShadow(vec3 p, vec3 n, vec3 lightPos)
 {
-	vec3 dir = normalize(lightPos - p);
-	float maxd = length(lightPos - p);
-	float t = 0.01;
-	for(int i = 0; i < 40; i++)
-	{
-
-		vec3 pos = p + dir * t;
-		float d = mapScene(pos).x;
-		if(d < 0.0001) return true;
-		t += d * clamp(1.0 / t, 0.5, 1.0);
-		if(t >= maxd) break;
-
-	}
-	return false;
-
+    vec3 dir = normalize(lightPos - p);
+    float maxDist = length(lightPos - p);
+    float t = 0.01;
+    for (int i = 0; i < 60; i++)
+    {
+        vec3 pos = p + dir * t;
+        float d = mapScene(pos).x;
+        if (d < 0.001) return true;
+        t += d * clamp(1.0 / t, 0.5, 1.0);
+        if (t >= maxDist) break;
+    }
+    return false;
 }
+
+
 
 vec3 calculateRO(float t, float r, float h)
 {
@@ -188,6 +228,7 @@ vec3 calculateRO(float t, float r, float h)
     return vec3(x,y,z);
     
 }
+
 
 mat3 lookAt(vec3 ro, vec3 target, vec3 uV)
 {
@@ -212,27 +253,23 @@ vec3 visualizeNormals(vec3 n, vec3 baseColor) {
   
 }
 
+void mainImage(out vec4 fragColor, in vec2 fragCoord)
+{
 
-
-
-void main() {
-
-	//the texture coordinates
-	vec2 uv = (gl_FragCoord.xy * 2- iResolution.xy) /iResolution.y;
-
-	Material obsidian = Material(
-    vec3(0.05375,0.05,0.06625),
-    vec3(0.18275,0.17,0.22525),
-    vec3(0.332741,0.328634,0.346435),
-    38.4);
+        Material obsidian = Material(
+        vec3(0.05375,0.05,0.06625),
+        vec3(0.18275,0.17,0.22525),
+        vec3(0.332741,0.328634,0.346435),
+        22.4);
         
-    Light magma = Light(
-    vec3(sin(iTime), 3.0, 0.0),        
-    vec3(0.1, 0.02, 0.01),                   
-    vec3(1.0, 0.3, 0.1),                     
-    vec3(1.0, 0.6, 0.3));
-
-
+        Light magma = Light(
+        vec3(0.0, 2.0, -1.0),        
+        vec3(0.15, 0.1, 0.05),                   
+        vec3(1.0, 0.3, 0.1),                     
+        vec3(1.0, 0.6, 0.3));
+        
+        
+    vec2 uv = (fragCoord * 2.0 - iResolution.xy) / iResolution.y;
     vec3 ro = calculateRO(iTime, 3.0 ,1.0);
     vec3 target = vec3(0.0, 1.0, 0.0);
     mat3 cam = lookAt(ro, target, vec3(0.0,1.0,0.0));
