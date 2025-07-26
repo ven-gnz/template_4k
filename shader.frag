@@ -319,8 +319,8 @@ void main()
         
         Light magma = Light(
         vec3(6.0+cos(iTime), 5.0, 2.0+sin(iTime)),        
-        vec3(1.0, 0.2, 0.2),                   
-        vec3(1.0, 0.2, 0.2),                     
+        vec3(1.0, 0.1, 0.1),                   
+        vec3(1.0, 0.1, 0.1),                     
         vec3(1.0, 1.0, 1.0));
         
     vec2 uv = (gl_FragCoord.xy * 2.0 - iResolution.xy) / iResolution.y;
@@ -332,7 +332,7 @@ void main()
 
     vec3 hitPos;
     float matID;
-    vec3 ambient = vec3(0.05);
+    vec3 ambient = vec3(0.01);
     vec3 col = ambient;
 
     float t = marchRay(ro, rd, hitPos, matID);
@@ -369,7 +369,7 @@ void main()
     
     
     vec3 smokeCol = smokeFunc(ro, rd);
-    vec3 finalCol = mix(col, smokeCol, 0.4);
-    finalCol = mix(finalCol, vec3(1.1, 0.8, 0.6), 0.2);
+    vec3 finalCol = mix(col, smokeCol, 0.6);
+    finalCol = pow(finalCol, vec3(1.0 / 2.2));
     fragColor = vec4(vec3(finalCol), 1.0);
 }
