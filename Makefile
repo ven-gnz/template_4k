@@ -4,7 +4,7 @@ CRINKLER = crinkler
 
 
 prepare: shader.frag prepare_shader.py
-	$(PYTHON) prepare_shader.py
+	$(PYTHON) prepare_shader.py 
 
 minify:
 	shader_minifier.exe shader.frag -o shader.inl --format c-variables

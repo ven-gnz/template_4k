@@ -11,6 +11,8 @@
 #define XRES 1920
 #define YRES 1080
 
+// can also try : 2560x1440 OR 4830x2160
+
 #pragma comment(lib, "opengl32.lib")
 #pragma comment(lib, "winmm.lib")  
 

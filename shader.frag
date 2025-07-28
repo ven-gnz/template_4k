@@ -2,6 +2,7 @@
 uniform float iTime;
 uniform vec2 iResolution;
 out vec4 fragColor;
+precision highp float;
 // world origin (0,0,0)
 
 
@@ -126,7 +127,6 @@ float sdCappedCone(vec3 p, float h, float r1, float r2)
 
 
 
-
 float parametricVolcanoFunc(vec3 p, vec3 volcanoCenter, vec3 volcanoDimensions, float seed)
 {
     
@@ -184,7 +184,7 @@ vec2 mapScene(vec3 p)
 float marchRay(vec3 ro, vec3 rd, out vec3 hitPos, out float matID)
 {
     float t = 0.0;
-    for (int i = 0; i < 80; i++)
+    for (int i = 0; i < 120; i++)
     {
         vec3 p = ro + rd * t;
         vec2 scene = mapScene(p);
@@ -204,7 +204,7 @@ float marchRay(vec3 ro, vec3 rd, out vec3 hitPos, out float matID)
 
 vec3 estimateNormal(vec3 p)
 {
-    float eps = 0.0005;
+    float eps = 0.0001;
     vec2 e = vec2(1.0, -1.0) * eps;
     return normalize(
         e.xyy * mapScene(p + e.xyy).x +
@@ -234,8 +234,6 @@ vec3 computeLight(vec3 p, vec3 n, Material mat, Light light, vec3 ro, vec3 rd)
 {
     //blinn phong as a try for less jaggies
     
-    
-    
     vec3 lightDir = normalize(light.pos - p);
     float lightDist = length(light.pos - p);
     vec3 viewDir = normalize(ro-p);
@@ -252,22 +250,6 @@ vec3 computeLight(vec3 p, vec3 n, Material mat, Light light, vec3 ro, vec3 rd)
     vec3 specular = light.specular * mat.specular * spec * shadow;
     return ambient + diffuse + specular;
     
-}
-
-bool isInShadow(vec3 p, vec3 n, vec3 lightPos)
-{
-    vec3 dir = normalize(lightPos - p);
-    float maxDist = length(lightPos - p);
-    float t = 0.01;
-    for (int i = 0; i < 60; i++)
-    {
-        vec3 pos = p + dir * t;
-        float d = mapScene(pos).x;
-        if (d < 0.001) return true;
-        t += d * clamp(1.0 / t, 0.5, 1.0);
-        if (t >= maxDist) break;
-    }
-    return false;
 }
 
 
@@ -322,9 +304,17 @@ void main()
         vec3(1.0, 0.1, 0.1),                   
         vec3(1.0, 0.1, 0.1),                     
         vec3(1.0, 1.0, 1.0));
+
+        Light vanilla = Light(
+        vec3(0.0, 6.0, 2.0),
+        vec3(1.0, 1.0, 1.0),
+        vec3(1.0, 1.0, 1.0),
+        vec3(1.0, 1.0, 1.0));
+
+
         
     vec2 uv = (gl_FragCoord.xy * 2.0 - iResolution.xy) / iResolution.y;
-    vec3 ro = calculateRO(iTime, 3.0 ,1.0);
+    vec3 ro = calculateRO(iTime, 7.0 ,1.0);
     vec3 target = vec3(0.0, 1.0, 0.0);
     mat3 cam = lookAt(ro, target, vec3(0.0,1.0,0.0));
     vec3 rd = cam * normalize(vec3(uv,1.0));
@@ -357,19 +347,19 @@ void main()
         if (matID == 1.0)
         {
            
-            vec3 lit = computeLight(hitPos, n, obsidian, magma, ro,rd);
+            vec3 lit = computeLight(hitPos, n, obsidian, vanilla, ro,rd);
             col = obsidian.ambient +  (lit - obsidian.ambient);
         }
         else if (matID == 2.0)
         {
             vec3 groundColor = vec3(0.15);
-            col = isInShadow(hitPos, n, magma.pos) ? groundColor * 0.5 : groundColor + ambient;
+           
         }
     }
     
     
     vec3 smokeCol = smokeFunc(ro, rd);
-    vec3 finalCol = mix(col, smokeCol, 0.6);
-    finalCol = pow(finalCol, vec3(1.0 / 2.2));
+    vec3 finalCol = mix(col, smokeCol, 0.5);
+    finalCol = pow(finalCol, vec3(1.0 / 2.2)); // linear gamma to get closer to shadertoy looks
     fragColor = vec4(vec3(finalCol), 1.0);
 }
