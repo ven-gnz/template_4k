@@ -62,7 +62,7 @@ float smokeDensity(vec3 p) {
 }
 
 
-bool isInSmokeField(vec3 p)
+bool isInSmokeVolume(vec3 p)
 {
     vec3 center = vec3(-1.1, 2.0, 0.0);
     vec3 localP = p - center;
@@ -77,16 +77,16 @@ float lavaDensity(vec3 p)
 {
     float d = 0.0;
     float scale = 4.0;
-    for(int i = 0; i < 32; i++)
+    for(int i = 0; i < 16; i++)
     {
-        d += noiseFunc(p * scale);
+        d += noiseFunc(p * scale) / scale;
         scale *= 2.0;
     }
     return d;
 }
 
 
-bool isInLava(vec3 p)
+bool isInLavaVolume(vec3 p)
 {
     vec3 center = vec3(-1.1, 2.0, 0.0);
     vec3 localP = p-center;
@@ -114,21 +114,22 @@ vec3 lavaFunc(vec3 ro, vec3 rd)
 {
     vec3 col = vec3(0.0);
     float t = 0.0;
-    for(int i = 0; i < 64; i++)
+       
+   for (int i = 0; i < 64; i++)
     {
-        vec3 pos = ro +rd*t;
-        if(!isInLava(pos)) {
-        t += 0.1;
-        continue;
-        }
-        float density = lavaDensity(pos - vec3(0.0, iTime* 4.0, 0.0));
+        vec3 pos = ro + rd * t;
+
+        float density = lavaDensity(pos - vec3(0.0, iTime * 4.0, 0.0));
         density = clamp(density, 0.0, 1.0);
-        return (lavaColorFunc(pos, density));
 
+        vec3 lavaCol = lavaColorFunc(pos, density);
+        col += lavaCol * density * 0.05 * (1.0 - col);
+
+        if (col.r > 0.95) break;
+
+        t += 0.1;
     }
-
-
-
+    return col;
 }
 
 
@@ -139,11 +140,6 @@ vec3 smokeFunc(vec3 ro, vec3 rd)
     for(int i = 0; i < 128; i++)
     {
         vec3 pos = ro + rd*t;
-        if (!isInSmokeField(pos)) {
-        t += 0.1;
-        continue;
-        }
-      
         float density = smokeDensity(pos - vec3(0.0, iTime*4.0, 0.0));
         density = clamp(density, 0.0, 1.0);
         vec3 smokeCol = vec3(0.5, 0.5, 0.5) * density;
@@ -162,9 +158,6 @@ float opSmoothSubtraction( float d1, float d2, float k )
     float h = clamp( 0.5 - 0.5*(d2+d1)/k, 0.0, 1.0 );
     return mix( d2, -d1, h ) + k*h*(1.0-h);
 }
-
-
-
 
 
 
@@ -230,7 +223,7 @@ vec2 mapScene(vec3 p)
     float volcano2 = parametricVolcanoFunc(p,volcano2Loc, volcano2Dim, 3.33);
     float plane = spPlane(p, vec3(0, 0.1, 0), 0.0);
    
-    vec2 v1 = vec2(volcano1, 1.0);
+    vec2 v1 = vec2(volcano1, 1.0); // 1 volcano matID
     vec2 v2 = vec2(volcano2, 1.0);
     vec2 pl = vec2(plane, 3.0);
  
@@ -347,6 +340,39 @@ vec3 visualizeNormals(vec3 n, vec3 baseColor) {
   
 }
 
+
+
+
+vec3 computeVolumetricEffects(vec3 ro, vec3 rd)
+{
+    vec3 col = vec3(0.0);
+    float t = 0.0;
+
+    for (int i = 0; i < 100; i++) {
+        vec3 pos = ro + rd * t;
+
+        if (isInLavaVolume(pos)) {
+            float lavaDens = lavaDensity(pos - vec3(0.0, iTime * 2.0, 0.0));
+            lavaDens = clamp(lavaDens, 0.0, 1.0);
+            vec3 lavaCol = lavaColorFunc(pos, lavaDens);
+            col += lavaCol * lavaDens * 0.05 * (1.0 - col);
+        }
+
+         if (isInSmokeVolume(pos)) {
+            float smokeDens = smokeDensity(pos - vec3(0.0, iTime * 2.0, 0.0));
+            smokeDens = clamp(smokeDens, 0.0, 1.0);
+            vec3 smokeCol = vec3(0.5, 0.5, 0.5) * smokeDens;
+            col += smokeCol * smokeDens * 0.05 * (1.0 - col);
+        }
+
+
+        if (length(col) > 0.95) break;
+        t += 0.1;
+    }
+
+    return col;
+}
+
 void main()
 {
 
@@ -400,25 +426,24 @@ void main()
         if (matID > 0.0)
         {
         vec3 n = estimateNormal(hitPos);
-        
-        vec3 ambient = vec3(0.1);
 
         if (matID == 1.0)
         {
            
-            vec3 lit = computeLight(hitPos, n, obsidian, vanilla, ro,rd);
+            vec3 lit = computeLight(hitPos, n, obsidian, magma, ro,rd);
             col = obsidian.ambient +  (lit - obsidian.ambient);
         }
         else if (matID == 2.0)
         {
             vec3 groundColor = vec3(0.15);
-           
+            // stub, might delete
         }
+ 
     }
-    
-    
-    vec3 smokeCol = smokeFunc(ro, rd);
-    vec3 finalCol = mix(col, smokeCol, 0.5);
+
+
+    vec3 volCol = computeVolumetricEffects(ro,rd);
+    vec3 finalCol = mix(col, volCol, 0.5);
     finalCol = pow(finalCol, vec3(1.0 / 2.2)); // linear gamma to get closer to shadertoy looks, seems to work OK
     fragColor = vec4(vec3(finalCol), 1.0);
 }
