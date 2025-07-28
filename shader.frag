@@ -75,6 +75,9 @@ bool isInSmokeVolume(vec3 p)
 
 float lavaDensity(vec3 p)
 {
+    vec3 flow = vec3(0.2, -1.0, 0.1);
+    vec3 pWarped = p + flow * iTime * 0.5; // warp the position to fake the movement inside the volume
+
     float d = 0.0;
     float scale = 4.0;
     for(int i = 0; i < 16; i++)
@@ -88,7 +91,7 @@ float lavaDensity(vec3 p)
 
 bool isInLavaVolume(vec3 p)
 {
-    vec3 center = vec3(-1.1, 2.0, 0.0);
+    vec3 center = vec3(-1.1, 2.0, 2.0);
     vec3 localP = p-center;
     float d = sphere(p, center, 1.5);
     return d < 0.0;
@@ -102,55 +105,14 @@ vec3 lavaColorFunc(vec3 p, float density)
     float glow = smoothstep(0.2, 0.8, density + 0.2 * n);
 
     vec3 cool = vec3(0.1, 0.0, 0.0);
-    vec3 hotter  = vec3(1.0, 0.5, 0.0);
-    vec3 hottest = vec3(1.0, 1.0, 0.5);
+    vec3 hotter  = vec3(1.0, 0.1, 0.0);
+    vec3 hottest = vec3(1.0, 0.7, 0.5);
 
     vec3 col = mix(cool, hotter, glow); 
     return col * glow;
 
 }
 
-vec3 lavaFunc(vec3 ro, vec3 rd)
-{
-    vec3 col = vec3(0.0);
-    float t = 0.0;
-       
-   for (int i = 0; i < 64; i++)
-    {
-        vec3 pos = ro + rd * t;
-
-        float density = lavaDensity(pos - vec3(0.0, iTime * 4.0, 0.0));
-        density = clamp(density, 0.0, 1.0);
-
-        vec3 lavaCol = lavaColorFunc(pos, density);
-        col += lavaCol * density * 0.05 * (1.0 - col);
-
-        if (col.r > 0.95) break;
-
-        t += 0.1;
-    }
-    return col;
-}
-
-
-vec3 smokeFunc(vec3 ro, vec3 rd)
-{
-    vec3 col = vec3(0.0);
-    float t = 0.0;
-    for(int i = 0; i < 128; i++)
-    {
-        vec3 pos = ro + rd*t;
-        float density = smokeDensity(pos - vec3(0.0, iTime*4.0, 0.0));
-        density = clamp(density, 0.0, 1.0);
-        vec3 smokeCol = vec3(0.5, 0.5, 0.5) * density;
-        col += smokeCol * 0.05 * (1.0 - col); // alpha blending
-        t += 0.1;
-        if (col.r > 0.95) break;
-    
-    }
-    return col;
-
-}
 
 
 float opSmoothSubtraction( float d1, float d2, float k )
@@ -348,8 +310,19 @@ vec3 computeVolumetricEffects(vec3 ro, vec3 rd)
     vec3 col = vec3(0.0);
     float t = 0.0;
 
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 128; i++) { // for release conf 128 iters, stepsize 0.001
         vec3 pos = ro + rd * t;
+
+        bool inLava = isInLavaVolume(pos);
+        bool inSmoke = isInSmokeVolume(pos);
+
+        
+        if (!inLava && !inSmoke) {
+            t += 0.15;
+            continue;
+        }
+
+         float stepSize = 0.001;
 
         if (isInLavaVolume(pos)) {
             float lavaDens = lavaDensity(pos - vec3(0.0, iTime * 2.0, 0.0));
@@ -367,7 +340,7 @@ vec3 computeVolumetricEffects(vec3 ro, vec3 rd)
 
 
         if (length(col) > 0.95) break;
-        t += 0.1;
+        t += stepSize;
     }
 
     return col;
@@ -376,7 +349,7 @@ vec3 computeVolumetricEffects(vec3 ro, vec3 rd)
 void main()
 {
 
-         vec3 baseRO = vec3(0.0, 1.0, 5.0);
+        vec3 baseRO = vec3(0.0, 1.0, 5.0);
 
         Material obsidian = Material(
         vec3(0.05375,0.05,0.06625),
