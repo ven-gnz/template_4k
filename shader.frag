@@ -76,7 +76,7 @@ bool isInSmokeVolume(vec3 p)
 float lavaDensity(vec3 p)
 {
     vec3 flow = vec3(0.2, -1.0, 0.1);
-    vec3 pWarped = p + flow * iTime * 0.5; // warp the position to fake the movement inside the volume
+    vec3 pWarped = p + flow * iTime; // we warp the position to fake the movement inside the volume
 
     float d = 0.0;
     float scale = 4.0;
@@ -100,15 +100,19 @@ bool isInLavaVolume(vec3 p)
 
 vec3 lavaColorFunc(vec3 p, float density)
 {
-    float n = noiseFunc(p * 4.0 + iTime * vec3(0.4, 0.2, 0.1));
 
+
+    float n =  noiseFunc(p * 4.0 + iTime * vec3(0.4, 0.2, 0.1));
     float glow = smoothstep(0.2, 0.8, density + 0.2 * n);
 
     vec3 cool = vec3(0.1, 0.0, 0.0);
-    vec3 hotter  = vec3(1.0, 0.1, 0.0);
-    vec3 hottest = vec3(1.0, 0.7, 0.5);
+    vec3 warm  = vec3(1.0, 0.4, 0.1);
+    vec3 hot = vec3(1.0, 1.0, 0.5);
 
-    vec3 col = mix(cool, hotter, glow); 
+    vec3 base = mix(cool, warm, smoothstep(0.2, 0.5, glow));
+    vec3 core = mix(warm, hot, smoothstep(0.5, 0.8, glow));
+    vec3 col = mix(base, core, pow(density, 1.5));
+   
     return col * glow;
 
 }
@@ -326,7 +330,6 @@ vec3 computeVolumetricEffects(vec3 ro, vec3 rd)
 
         if (isInLavaVolume(pos)) {
             float lavaDens = lavaDensity(pos - vec3(0.0, iTime * 2.0, 0.0));
-            lavaDens = clamp(lavaDens, 0.0, 1.0);
             vec3 lavaCol = lavaColorFunc(pos, lavaDens);
             col += lavaCol * lavaDens * 0.05 * (1.0 - col);
         }
