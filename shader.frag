@@ -41,6 +41,15 @@ float sdFlippedCone(vec3 p, vec2 c, float h)
   return max(dot(c.xy, vec2(q, -p.y)), -h + p.y);
 }
 
+float spPlane(vec3 p, vec3 n, float h)
+{
+    return dot(p, n) + h;
+}
+
+float sphere(vec3 p, vec3 center, float r) {
+    return length(p - center) - r;
+}
+
 
 float smokeDensity(vec3 p) {
     float d = 0.0;
@@ -62,6 +71,64 @@ bool isInSmokeField(vec3 p)
     float h = 0.9;
     float d = sdFlippedCone(localP, vec2(0.5, 0.7), h+ abs(sin(iTime*0.25)));
     return d < 0.0;
+}
+
+float lavaDensity(vec3 p)
+{
+    float d = 0.0;
+    float scale = 4.0;
+    for(int i = 0; i < 32; i++)
+    {
+        d += noiseFunc(p * scale);
+        scale *= 2.0;
+    }
+    return d;
+}
+
+
+bool isInLava(vec3 p)
+{
+    vec3 center = vec3(-1.1, 2.0, 0.0);
+    vec3 localP = p-center;
+    float d = sphere(p, center, 1.5);
+    return d < 0.0;
+}
+
+
+vec3 lavaColorFunc(vec3 p, float density)
+{
+    float n = noiseFunc(p * 4.0 + iTime * vec3(0.4, 0.2, 0.1));
+
+    float glow = smoothstep(0.2, 0.8, density + 0.2 * n);
+
+    vec3 cool = vec3(0.1, 0.0, 0.0);
+    vec3 hotter  = vec3(1.0, 0.5, 0.0);
+    vec3 hottest = vec3(1.0, 1.0, 0.5);
+
+    vec3 col = mix(cool, hotter, glow); 
+    return col * glow;
+
+}
+
+vec3 lavaFunc(vec3 ro, vec3 rd)
+{
+    vec3 col = vec3(0.0);
+    float t = 0.0;
+    for(int i = 0; i < 64; i++)
+    {
+        vec3 pos = ro +rd*t;
+        if(!isInLava(pos)) {
+        t += 0.1;
+        continue;
+        }
+        float density = lavaDensity(pos - vec3(0.0, iTime* 4.0, 0.0));
+        density = clamp(density, 0.0, 1.0);
+        return (lavaColorFunc(pos, density));
+
+    }
+
+
+
 }
 
 
@@ -97,14 +164,7 @@ float opSmoothSubtraction( float d1, float d2, float k )
 }
 
 
-float spPlane(vec3 p, vec3 n, float h)
-{
-    return dot(p, n) + h;
-}
 
-float sphere(vec3 p, vec3 center, float r) {
-    return length(p - center) - r;
-}
 
 
 
@@ -129,8 +189,7 @@ float sdCappedCone(vec3 p, float h, float r1, float r2)
 
 float parametricVolcanoFunc(vec3 p, vec3 volcanoCenter, vec3 volcanoDimensions, float seed)
 {
-    
-    
+    // not fully parametric yet, I might want to look into parameterizing the amount of lumps in the volcano as welll...
     float h = volcanoDimensions.x;
     float r1 = volcanoDimensions.y;
     float r2 = volcanoDimensions.z;
@@ -360,6 +419,6 @@ void main()
     
     vec3 smokeCol = smokeFunc(ro, rd);
     vec3 finalCol = mix(col, smokeCol, 0.5);
-    finalCol = pow(finalCol, vec3(1.0 / 2.2)); // linear gamma to get closer to shadertoy looks
+    finalCol = pow(finalCol, vec3(1.0 / 2.2)); // linear gamma to get closer to shadertoy looks, seems to work OK
     fragColor = vec4(vec3(finalCol), 1.0);
 }
