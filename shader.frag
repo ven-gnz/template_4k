@@ -76,7 +76,7 @@ bool isInSmokeVolume(vec3 p)
 float lavaDensity(vec3 p)
 {
     vec3 flow = vec3(0.2, -1.0, 0.1);
-    vec3 pWarped = p + flow * iTime; // we warp the position to fake the movement inside the volume
+    vec3 pWarped = p + flow * iTime * 0.5; // we warp the position to fake the movement inside the volume
 
     float d = 0.0;
     float scale = 4.0;
