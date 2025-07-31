@@ -8,8 +8,9 @@
 #include "shader.inl"
 #include "audio.inl"
 
-#define XRES 1920
-#define YRES 1080
+#define XRES 1280
+#define YRES 720
+// 1920 1080 for RELEASE
 
 // can also try : 2560x1440 OR 4830x2160
 
@@ -91,7 +92,7 @@ extern "C" void entry(void)
 	long startTime = timeGetTime();
 	
 	float iTime;
-	const int frameTargetMS = 16;
+	const int frameTargetMS = 3;
 	const DWORD introEnd = 90000;
 
 	fillAudio();
@@ -107,7 +108,7 @@ extern "C" void entry(void)
 		glRects(-1, -1, 1, 1);
 		SwapBuffers(hDC);
 
-		Sleep(16); // ~60 FPS
+		Sleep(frameTargetMS); // 
 
 
 	} while (!(msg.message == WM_KEYDOWN && msg.wParam == VK_ESCAPE) && iTime < introEnd);
