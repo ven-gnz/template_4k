@@ -23,6 +23,16 @@ vec3 diffuse;
 vec3 specular;
 };
 
+struct Volcano {
+    vec3 dim;
+    vec3 pos;
+};
+
+const Volcano Volcano1 =
+Volcano (
+    vec3(1.25, 1.75, 1.0),
+    vec3(-1.0, 0.875, -0.1) );
+
 
 float noiseFunc(vec3 p) {
     return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
@@ -64,13 +74,13 @@ float smokeDensity(vec3 p) {
 
 bool isInSmokeVolume(vec3 p)
 {
-    vec3 center = vec3(-1.1, 2.0, 0.0);
-    vec3 localP = p - center;
+    vec3 center1 = vec3(-1.1, 2.0, 0.0); // volcano2 aligned
+    vec3 localizedP = p - center1;
     float hMax = 0.9;
     float hMin = 0.5;
     float h = 0.9;
-    float d = sdFlippedCone(localP, vec2(0.5, 0.7), h+ abs(sin(iTime*0.25)));
-    return d < 0.0;
+    float d1 = sdFlippedCone(localizedP, vec2(0.5, 0.7), h+ abs(sin(iTime*0.25)));
+    return d1 < 0.0;
 }
 
 
@@ -81,8 +91,6 @@ float opSmoothSubtraction( float d1, float d2, float k )
     return mix( d2, -d1, h ) + k*h*(1.0-h);
 }
 
-
-
 float craterNoise(vec3 p) {
     float n = noiseFunc(p * 100.0);
     return smoothstep(0.3, 0.5, n);
@@ -90,7 +98,6 @@ float craterNoise(vec3 p) {
 
 float sdCappedCone(vec3 p, float h, float r1, float r2)
 {
-
     vec2 q = vec2(length(p.xz), p.y);
     vec2 k1 = vec2(r2, h);
     vec2 k2 = vec2(r2 - r1, 2.0 * h);
@@ -102,21 +109,25 @@ float sdCappedCone(vec3 p, float h, float r1, float r2)
 
 
 
-float parametricVolcanoFunc(vec3 p, vec3 volcanoCenter, vec3 volcanoDimensions, float seed)
+float parametricVolcanoFunc(vec3 p,
+    vec3 volcanoCenter,
+    vec3 volcanoDimensions,
+    float seed)
 {
     // not fully parametric yet, I might want to look into parameterizing the amount of lumps in the volcano as welll...
-    float h = volcanoDimensions.x;
+    float h =  volcanoDimensions.x;
     float r1 = volcanoDimensions.y;
     float r2 = volcanoDimensions.z;
     float v = sdCappedCone(p-volcanoCenter, h, r1, r2);
 
     for (int i = 0; i < 19; i++) {
+
         float angle = float(i) / 19.0 * 6.2831;
         float heightRatio = noiseFunc(vec3(angle, 1.0, 1.0));
         float craterHeight = mix(0.1, h, heightRatio);
         float localRadius = mix(r1, r2, craterHeight / h);
 
-        float radius = mix(0.05, 0.3, noiseFunc(vec3(angle * 10.0, 0.0, seed)));
+        float radius = mix(0.05, 0.6, noiseFunc(vec3(angle * 10.0, 0.0, seed)));
 
         vec3 craterPos = volcanoCenter
                        + vec3(cos(angle), 0.0, sin(angle)) * localRadius
@@ -134,14 +145,11 @@ float parametricVolcanoFunc(vec3 p, vec3 volcanoCenter, vec3 volcanoDimensions, 
 vec2 mapScene(vec3 p)
 {
 
-    vec3 volcano1Dim = vec3(1.25, 1.75, 1.0);
-    vec3 volcano1Loc = vec3(-1.0, volcano1Dim.y*0.5, -0.1);
-
     vec3 volcano2Dim = vec3(3.1, 2.2, 1.2);
     vec3 volcano2Loc = vec3(1.75, volcano2Dim.y*0.5, 1.0);
 
-    float volcano1 = parametricVolcanoFunc(p,volcano1Loc, volcano1Dim, 4.45);
-    float volcano2 = parametricVolcanoFunc(p,volcano2Loc, volcano2Dim, 3.33);
+    float volcano1 = parametricVolcanoFunc(p, Volcano1.pos, Volcano1.dim, 4.45);
+    float volcano2 = parametricVolcanoFunc(p, volcano2Loc, volcano2Dim, 3.33);
 
     vec2 v1 = vec2(volcano1, 1.0); // 1 volcano matID
     vec2 v2 = vec2(volcano2, 1.0);
@@ -203,7 +211,6 @@ float softShadow(vec3 ro, vec3 rd, float mint, float maxt, float k)
 vec3 computeLight(vec3 p, vec3 n, Material mat, Light light, vec3 ro, vec3 rd)
 {
     //blinn phong as a try for less jaggies
-
     vec3 lightDir = normalize(light.pos - p);
     float lightDist = length(light.pos - p);
     vec3 viewDir = normalize(ro-p);
@@ -229,7 +236,7 @@ vec3 calculateRO(float t, float r, float h)
 
     float angle = 0.2*t;
     float x = cos(angle)*r;
-    float y = h;
+    float y = h + sin(t);
     float z = sin(angle)*r;
     return vec3(x,y,z);
 
