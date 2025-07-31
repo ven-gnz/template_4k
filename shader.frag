@@ -26,12 +26,22 @@ vec3 specular;
 struct Volcano {
     vec3 dim;
     vec3 pos;
+    float seed;
 };
 
 const Volcano Volcano1 =
 Volcano (
     vec3(1.25, 1.75, 1.0),
-    vec3(-1.0, 0.875, -0.1) );
+    vec3(-1.0, 0.875, -0.1),
+    4.45 );
+
+const Volcano Volcano2 =
+Volcano (
+    vec3(3.1, 2.2, 1.2),
+    vec3(1.75, 1.1, 1.0),
+    3.33 );
+
+
 
 
 float noiseFunc(vec3 p) {
@@ -145,11 +155,8 @@ float parametricVolcanoFunc(vec3 p,
 vec2 mapScene(vec3 p)
 {
 
-    vec3 volcano2Dim = vec3(3.1, 2.2, 1.2);
-    vec3 volcano2Loc = vec3(1.75, volcano2Dim.y*0.5, 1.0);
-
-    float volcano1 = parametricVolcanoFunc(p, Volcano1.pos, Volcano1.dim, 4.45);
-    float volcano2 = parametricVolcanoFunc(p, volcano2Loc, volcano2Dim, 3.33);
+    float volcano1 = parametricVolcanoFunc(p, Volcano1.pos, Volcano1.dim, Volcano1.seed);
+    float volcano2 = parametricVolcanoFunc(p, Volcano2.pos, Volcano2.dim, Volcano2.seed);
 
     vec2 v1 = vec2(volcano1, 1.0); // 1 volcano matID
     vec2 v2 = vec2(volcano2, 1.0);
