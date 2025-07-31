@@ -26,21 +26,24 @@ vec3 specular;
 struct Volcano {
     vec3 dim;
     vec3 pos;
+    vec3 smokeStartPos;
     float seed;
     int numOfLumps;
 };
 
 const Volcano Volcano1 =
 Volcano (
-    vec3(1.25, 1.75, 1.0),
-    vec3(-1.0, 0.875, -0.1),
+    vec3(1.25, 1.75, 2.25),
+    vec3(-2.0, 0.875, -0.1),
+    vec3(-1.0, 1.75, -0.1),
     4.45,
     17 );
 
 const Volcano Volcano2 =
 Volcano (
-    vec3(3.1, 2.2, 1.2),
-    vec3(1.75, 1.1, 1.0),
+    vec3(3.1, 2.2, 3.4),
+    vec3(2.75, 1.4, 3.35),
+    vec3(1.75, 2.2, 1.2),
     3.33,
     14 );
 
@@ -89,13 +92,23 @@ float smokeDensity(vec3 p) {
 
 bool isInSmokeVolume(vec3 p)
 {
-    vec3 center1 = vec3(-1.1, 2.0, 0.0); // volcano2 aligned
+    vec3 center1 = Volcano1.smokeStartPos; // volcano2 aligned
     vec3 localizedP = p - center1;
     float hMax = 0.9;
     float hMin = 0.5;
+    vec2 widthVector = vec2(0.4,0.4);
     float h = 0.9;
-    float d1 = sdFlippedCone(localizedP, vec2(0.5, 0.7), h+ abs(sin(iTime*0.25)));
-    return d1 < 0.0;
+    float d1 = sdFlippedCone(localizedP, widthVector, h + abs(sin(iTime*0.25)));
+
+
+    vec3 center2 = Volcano2.smokeStartPos;
+    vec3 localizedP2 = p - center2;
+    float hMax2 = 0.9;
+    float hMin2 = 0.4;
+    float h2 = 0.7;
+    float d2 = sdFlippedCone(localizedP2, widthVector, h + abs(sin(iTime*0.25)));
+    return d1 < 0.0 || d2 < 0.0;
+
 }
 
 
@@ -128,8 +141,8 @@ float parametricVolcanoFunc(vec3 p,
     Volcano volcano)
 {
 
-    float h = volcano.dim.x;
-    float r1 = volcano.dim.y;
+    float h = volcano.dim.y;
+    float r1 = volcano.dim.x;
     float r2 = volcano.dim.z;
     float v = sdCappedCone(p-volcano.pos, h, r1, r2);
     float seed = volcano.seed;
