@@ -27,19 +27,24 @@ struct Volcano {
     vec3 dim;
     vec3 pos;
     float seed;
+    int numOfLumps;
 };
 
 const Volcano Volcano1 =
 Volcano (
     vec3(1.25, 1.75, 1.0),
     vec3(-1.0, 0.875, -0.1),
-    4.45 );
+    4.45,
+    17 );
 
 const Volcano Volcano2 =
 Volcano (
     vec3(3.1, 2.2, 1.2),
     vec3(1.75, 1.1, 1.0),
-    3.33 );
+    3.33,
+    14 );
+
+
 
 
 
@@ -120,19 +125,20 @@ float sdCappedCone(vec3 p, float h, float r1, float r2)
 
 
 float parametricVolcanoFunc(vec3 p,
-    vec3 volcanoCenter,
-    vec3 volcanoDimensions,
-    float seed)
+    Volcano volcano)
 {
-    // not fully parametric yet, I might want to look into parameterizing the amount of lumps in the volcano as welll...
-    float h =  volcanoDimensions.x;
-    float r1 = volcanoDimensions.y;
-    float r2 = volcanoDimensions.z;
-    float v = sdCappedCone(p-volcanoCenter, h, r1, r2);
 
-    for (int i = 0; i < 19; i++) {
+    float h = volcano.dim.x;
+    float r1 = volcano.dim.y;
+    float r2 = volcano.dim.z;
+    float v = sdCappedCone(p-volcano.pos, h, r1, r2);
+    float seed = volcano.seed;
+    vec3 volcanoCenter = volcano.pos;
+    int numOfLumps = volcano.numOfLumps;
 
-        float angle = float(i) / 19.0 * 6.2831;
+    for (int i = 0; i < numOfLumps; i++) {
+
+        float angle = float(i) / numOfLumps * 6.2831;
         float heightRatio = noiseFunc(vec3(angle, 1.0, 1.0));
         float craterHeight = mix(0.1, h, heightRatio);
         float localRadius = mix(r1, r2, craterHeight / h);
@@ -155,8 +161,8 @@ float parametricVolcanoFunc(vec3 p,
 vec2 mapScene(vec3 p)
 {
 
-    float volcano1 = parametricVolcanoFunc(p, Volcano1.pos, Volcano1.dim, Volcano1.seed);
-    float volcano2 = parametricVolcanoFunc(p, Volcano2.pos, Volcano2.dim, Volcano2.seed);
+    float volcano1 = parametricVolcanoFunc(p, Volcano1);
+    float volcano2 = parametricVolcanoFunc(p, Volcano2);
 
     vec2 v1 = vec2(volcano1, 1.0); // 1 volcano matID
     vec2 v2 = vec2(volcano2, 1.0);
