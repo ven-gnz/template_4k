@@ -113,6 +113,7 @@ extern "C" void entry(void)
 
 	} while (!(msg.message == WM_KEYDOWN && msg.wParam == VK_ESCAPE) && iTime < introEnd);
 
+	stopAudio();
     ChangeDisplaySettings(0, 0);
     ShowCursor(1);
     ExitProcess(0);
