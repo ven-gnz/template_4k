@@ -13,7 +13,7 @@ COMMON_FLAGS = /nologo /GS-
 LIBS = kernel32.lib user32.lib gdi32.lib opengl32.lib winmm.lib
 
 SOURCE_FILES = main.cpp
-OBJ_FILES = main.obj
+OBJ_FILES = main.obj 
 
 TARGET_FILE_DEBUG = intro_debug.exe
 TARGET_FILE_RELEASE = intro.exe
@@ -27,7 +27,7 @@ CRINKLER_FLAGS_RELEASE = /ENTRY:entry /SUBSYSTEM:WINDOWS /COMPMODE:SLOW /ORDERTR
 all: release
 
 clean:
-	del /Q *.obj *.pdb *.ilk
+	del /Q main.obj *.pdb *.ilk
 
 debug: prepare clean
 	$(COMPILER) $(COMMON_FLAGS) $(COMPILER_FLAGS_DEBUG) /c $(SOURCE_FILES)

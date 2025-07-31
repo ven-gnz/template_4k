@@ -26,7 +26,7 @@ float hihat(float t, float startTime) {
 
     float noise = ((float)rand() / (float)RAND_MAX) * 2.0f - 1.0f;
     float envelope = expf(-60.0f * dt);
-    return noise * envelope * 0.2f; 
+    return noise * envelope * 0.2f;
 }
 
 void fillAudio() {
@@ -45,17 +45,17 @@ void fillAudio() {
             if (beatInBar == 0 && fmodf(t, 2.0f) < 0.01f)
                 hat = hihat(t, floorf(t / 2.0f) * 2.0f);
         }
-        
+
         else if (bar < 8) {
             if (fmodf(t, 0.5f) < 0.01f)
                 hat = hihat(t, floorf(t / 0.5f) * 0.5f);
         }
-        
+
         else if (bar < 10) {
             if (fmodf(t, 0.25f) < 0.005f)
                 hat = hihat(t, floorf(t / 0.25f) * 0.25f);
         }
-        
+
         float mixed = sample + hat;
         if (mixed > 1.0f) mixed = 1.0f;
         if (mixed < -1.0f) mixed = -1.0f;
