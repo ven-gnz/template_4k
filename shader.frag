@@ -33,23 +33,27 @@ struct Volcano {
 
 const Volcano Volcano1 =
 Volcano (
-    vec3(1.25, 1.75, 2.25),
-    vec3(-2.0, 0.875, -0.1),
-    vec3(-1.0, 1.75, -0.1),
+    vec3(2.25, 3.1, 1.25), // go for larger, y, smaller then it looks better...
+    vec3(-2.0, 1.6, -0.1), // keep y roughly half of pos.y
+    vec3(-2.0, 3.1, -0.1), // match x-> pos.x, y -> dim.y, z->pos.z and easy mapping yay
     4.45,
     17 );
 
 const Volcano Volcano2 =
 Volcano (
-    vec3(3.1, 2.2, 3.4),
-    vec3(2.75, 1.4, 3.35),
-    vec3(1.75, 2.2, 1.2),
+    vec3(3.4, 2.2, 2.7),
+    vec3(2.75, 1.1, 3.35),
+    vec3(2.75, 2.2, 3.35),
     3.33,
     14 );
 
-
-
-
+const Volcano Volcano3 =
+Volcano (
+    vec3(3.4, 2.2, 2.7),
+    vec3(11.1, 1.1, 6.6),
+    vec3(11.1, 2.2, 6.6),
+    3.33,
+    14 );
 
 
 float noiseFunc(vec3 p) {
@@ -94,20 +98,20 @@ bool isInSmokeVolume(vec3 p)
 {
     vec3 center1 = Volcano1.smokeStartPos; // volcano2 aligned
     vec3 localizedP = p - center1;
-    float hMax = 0.9;
-    float hMin = 0.5;
     vec2 widthVector = vec2(0.4,0.4);
     float h = 0.9;
     float d1 = sdFlippedCone(localizedP, widthVector, h + abs(sin(iTime*0.25)));
 
-
     vec3 center2 = Volcano2.smokeStartPos;
     vec3 localizedP2 = p - center2;
-    float hMax2 = 0.9;
-    float hMin2 = 0.4;
-    float h2 = 0.7;
+    // mbe add own h per volcano smoke cloud, lets see
     float d2 = sdFlippedCone(localizedP2, widthVector, h + abs(sin(iTime*0.25)));
-    return d1 < 0.0 || d2 < 0.0;
+
+    vec3 center3 = Volcano3.smokeStartPos;
+    vec3 localizedP3 = p-center3;
+    float d3 = sdFlippedCone(localizedP3, widthVector, h + abs(sin(iTime*0.25)));
+
+    return d1 < 0.0 || d2 < 0.0 || d3 < 0.0;
 
 }
 
@@ -152,7 +156,7 @@ float parametricVolcanoFunc(vec3 p,
     for (int i = 0; i < numOfLumps; i++) {
 
         float angle = float(i) / numOfLumps * 6.2831;
-        float heightRatio = noiseFunc(vec3(angle, 1.0, 1.0));
+        float heightRatio = noiseFunc(vec3(angle, seed, 1.0));
         float craterHeight = mix(0.1, h, heightRatio);
         float localRadius = mix(r1, r2, craterHeight / h);
 
@@ -176,11 +180,15 @@ vec2 mapScene(vec3 p)
 
     float volcano1 = parametricVolcanoFunc(p, Volcano1);
     float volcano2 = parametricVolcanoFunc(p, Volcano2);
+    float volcano3 = parametricVolcanoFunc(p, Volcano3);
 
     vec2 v1 = vec2(volcano1, 1.0); // 1 volcano matID
     vec2 v2 = vec2(volcano2, 1.0);
+    vec2 v3 = vec2(volcano3, 1.0);
+
 
     vec2 scene = (v1.x < v2.x) ? v1 : v2;
+    scene = scene.x < v3.x ? scene : v3;
 
     return scene;
 }
@@ -237,6 +245,9 @@ float softShadow(vec3 ro, vec3 rd, float mint, float maxt, float k)
 vec3 computeLight(vec3 p, vec3 n, Material mat, Light light, vec3 ro, vec3 rd)
 {
     //blinn phong as a try for less jaggies
+
+
+
     vec3 lightDir = normalize(light.pos - p);
     float lightDist = length(light.pos - p);
     vec3 viewDir = normalize(ro-p);
