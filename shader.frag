@@ -27,18 +27,16 @@ vec3 pos;
 vec3 ambient;
 vec3 diffuse;
 vec3 specular;
-float constant;
-float linear;
-float quadratic;
+vec3 attenuation;
 };
 
-uniform Light magma = Light(
-        vec3(2.75, 5.0, 3.35),
+Light magma = Light(
+        vec3(2.75, 3.0, 3.35),
         vec3(0.8, 0.3, 0.2),
         vec3(1.0, 0.5, 0.5),
-        vec3(1.0, 1.0, 1.0),
-        0.5f, 0.0014f, 0.00007f); //0.5f, 0.0014f, 0.00007f for after explosion, 1.0f, 0.7f, 1.8f before
-
+        vec3(1.0, 0.8, 0.7),
+        vec3(1.0f, 0.7f, 1.8f)); //0.5f, 0.0014f, 0.00007f for after explosion, 1.0f, 0.7f, 1.8f before
+                                        
 
 struct Volcano {
     vec3 dim;
@@ -71,6 +69,17 @@ Volcano (
     vec3(1.1,  2.2, -4.6),
     3.33,
     7 );
+
+
+ const Volcano Volcano4 =
+Volcano (
+    vec3(2.25, 2.2, 1.25),
+    vec3(-3.0,  1.1, -4.0),
+    vec3(-3.0,  2.2, -4.6),
+    18.75,
+    15 );
+
+
 
     
 float sdCapsule( vec3 p, vec3 a, vec3 b, float r )
@@ -121,22 +130,27 @@ float smokeDensity(vec3 p) {
 
 bool isInSmokeVolume(vec3 p)
 {
+    
     vec3 center1 = Volcano1.smokeStartPos; // volcano2 aligned
     vec3 localizedP = p - center1;
     vec2 widthVector = vec2(0.6, 0.7);
     float h = 1.7;
-    float d1 = sdFlippedCone(localizedP, widthVector, h + abs(sin(iTime*0.25)) + (iTime-15));
+    float d1 = sdFlippedCone(localizedP, widthVector, h + abs(sin(iTime*Volcano1.seed)) + (iTime-15));
 
     vec3 center2 = Volcano2.smokeStartPos;
     vec3 localizedP2 = p - center2;
     // mbe add own h per volcano smoke cloud, lets see
-    float d2 = sdFlippedCone(localizedP2, widthVector, h + abs(sin(iTime*0.25))+ (iTime-15));
+    float d2 = sdFlippedCone(localizedP2, widthVector, h + abs(sin(iTime*Volcano2.seed))+ (iTime-15));
 
     vec3 center3 = Volcano3.smokeStartPos;
     vec3 localizedP3 = p-center3;
-    float d3 = sdFlippedCone(localizedP3, widthVector, h + abs(sin(iTime*0.25))+ (iTime-15));
+    float d3 = sdFlippedCone(localizedP3, widthVector, h + abs(sin(iTime*Volcano3.seed))+ (iTime-15));
 
-    return d1 < 0.0 || d2 < 0.0 || d3 < 0.0;
+    vec3 center4 = Volcano4.smokeStartPos;
+    vec3 localizedP4 = p-center4;
+    float d4 = sdFlippedCone(localizedP4, vec2(0.3, 0.3), h + abs(sin(iTime*Volcano4.seed))+ (iTime-15));
+
+    return d1 < 0.0 || d2 < 0.0 || d3 < 0.0 || d4 < 0.0;
 
 }
 
@@ -208,17 +222,17 @@ vec2 mapScene(vec3 p)
     float volcano1 = parametricVolcanoFunc(p, Volcano1);
     float volcano2 = parametricVolcanoFunc(p, Volcano2);
     float volcano3 = parametricVolcanoFunc(p, Volcano3);
-
-    float lits = sdCapsule(p, magma.pos, vec3(magma.pos.x, magma.pos.y+2.0, magma.pos.z), 1.5);
+    float volcano4 = parametricVolcanoFunc(p, Volcano4);
+    
 
     vec2 v1 = vec2(volcano1, 1.0); // 1 volcano matID
     vec2 v2 = vec2(volcano2, 1.0);
     vec2 v3 = vec2(volcano3, 1.0);
-    vec2 lit = vec2(lits, 3.0);
+    vec2 v4 = vec2(volcano4, 1.0);
 
     vec2 scene = (v1.x < v2.x) ? v1 : v2;
     scene = scene.x < v3.x ? scene : v3;
-    scene = scene.x < lit.x ? scene : lit;
+    scene = scene.x < v4.x ? scene : v4;
 
     return scene;
 }
@@ -260,10 +274,10 @@ float softShadow(vec3 ro, vec3 rd, float mint, float maxt, float k)
 {
     float res = 1.0;
     float t = mint;
-    for (int i = 0; i < 32 && t < maxt; i++) // must go for higher count on release and smaller threshold as well as stepsize
+    for (int i = 0; i < 32 && t < maxt; i++)
     {
         float h = mapScene(ro + rd * t).x;
-        if (h < 0.001)
+        if (h < 0.005)
             return 0.0;
         res = min(res, k * h / t);
         t += clamp(h, 0.01, 0.2);
@@ -285,10 +299,10 @@ vec3 computeLight(vec3 p, vec3 n, Material mat, Light light, vec3 ro, vec3 rd)
 
     float diff = max(dot(n, lightDir), 0.0);
     float spec = pow(max(dot(halfV, reflectDir), 0.0), mat.shininess);
-    float shadow = softShadow(p + 0.01*n, lightDir, 0.01, lightDist, 64.0);
+    float shadow = softShadow(p + 0.01*n, lightDir, 0.01, lightDist, 32.0);
 
    float distance = length(light.pos - p);
-   float attenuation = 1.0 / (light.constant + light.linear* distance + light.quadratic * (distance*distance));
+   float attenuation = 1.0 / (light.attenuation.x + light.attenuation.y* distance + light.attenuation.z * (distance*distance));
 
     vec3 ambient  = light.ambient  * mat.ambient;
     vec3 diffuse  = light.diffuse  * mat.diffuse * diff * shadow;
@@ -296,6 +310,8 @@ vec3 computeLight(vec3 p, vec3 n, Material mat, Light light, vec3 ro, vec3 rd)
 
     diffuse *= attenuation;
     specular *= attenuation;
+
+    
     return ambient + diffuse + specular;
 
 }
@@ -348,12 +364,14 @@ vec3 computeVolumetricEffects(vec3 ro, vec3 rd)
         vec3 pos = ro + rd * t;
 
         bool inSmoke = isInSmokeVolume(pos);
+  
+
         if (!inSmoke) {
             t += 0.15;
             continue;
         }
 
-         float stepSize = 0.005;
+         float stepSize = 0.002;
 
          if (isInSmokeVolume(pos)) {
             float smokeDens = smokeDensity(pos - vec3(0.0, iTime * 2.0, 0.0));
@@ -384,6 +402,17 @@ void main()
     float matID;
     vec3 ambient = vec3(0.05);
     vec3 col = ambient;
+
+
+
+    if(iTime > 12) // SYNC WITH AUDIO -> 45 ish
+    {
+
+    magma.attenuation = vec3(0.4f, 0.0007f, 0.000003);
+    
+    }
+
+
 
     float t = marchRay(ro, rd, hitPos, matID);
         // first we try to get a better geometry

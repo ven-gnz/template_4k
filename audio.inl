@@ -50,26 +50,44 @@ float lerp(float a, float b, float t)
 }
 
 
+
+float wind(float t) {
+
+    float easywobble = sinf(t * 0.5f * 3.14159f * 0.1f) * 0.05f;
+    float freq = 1000.0f;
+    return osc(t, freq*easywobble);
+    
+}
+
+
 void fillAudio() {
     for (int i = 0; i < BUF_SIZE; ++i) {
         float t = (float)i / SAMPLE_RATE;
         int currentBeat = (int)(t / beatDuration);
         float sample = 0.0f;
-        float mixed = sample;
-        float basePadFreq = 40.0;
-
-        if (currentBeat >= 4 && currentBeat <= 16)
+        float mixed = 0.0f;
+        if (currentBeat < 90)
         {
-            mixed += pad(t, basePadFreq);
+            mixed += wind(t);
         }
-        if (currentBeat > 16)
-        {
-            mixed += hiss(t);
-        }
+        
+        float basePadFreq = 30.0;
 
+        //mid point of intro, display fogs
         if (currentBeat >= 28 && currentBeat < 36) {
             mixed += hiss(t);
         }
+
+        //finale - lift magma and remove lot of attenuation
+        if (currentBeat >= 90 && currentBeat <= 94)
+        {
+            mixed += pad(t, basePadFreq);
+        }
+        if (currentBeat > 94 && currentBeat < 104)
+        {
+            mixed += hiss(t);
+        }
+
         
         if (mixed > 1.0f) mixed = 1.0f;
         if (mixed < -1.0f) mixed = -1.0f;
