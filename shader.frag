@@ -15,13 +15,30 @@ struct Material {
     float shininess;
 };
 
+const Material obsidian = Material(
+        vec3(0.05375,0.05,0.06625),
+        vec3(0.18275,0.17,0.22525),
+        vec3(0.332741,0.328634,0.346435),
+        22.4);
+
 
 struct Light {
 vec3 pos;
 vec3 ambient;
 vec3 diffuse;
 vec3 specular;
+float constant;
+float linear;
+float quadratic;
 };
+
+uniform Light magma = Light(
+        vec3(2.75, 5.0, 3.35),
+        vec3(0.8, 0.3, 0.2),
+        vec3(1.0, 0.5, 0.5),
+        vec3(1.0, 1.0, 1.0),
+        0.5f, 0.0014f, 0.00007f); //0.5f, 0.0014f, 0.00007f for after explosion, 1.0f, 0.7f, 1.8f before
+
 
 struct Volcano {
     vec3 dim;
@@ -42,7 +59,7 @@ Volcano (
 const Volcano Volcano2 =
 Volcano (
     vec3(3.4, 2.2, 2.7),
-    vec3(2.75, 1.1, 3.35),
+    vec3(2.75, 1.1, 3.35), // this is the big one so maybe put the lava here
     vec3(2.75, 2.2, 3.35),
     3.33,
     14 );
@@ -54,6 +71,14 @@ Volcano (
     vec3(1.1,  2.2, -4.6),
     3.33,
     7 );
+
+    
+float sdCapsule( vec3 p, vec3 a, vec3 b, float r )
+{
+  vec3 pa = p - a, ba = b - a;
+  float h = clamp( dot(pa,ba)/dot(ba,ba), 0.0, 1.0 );
+  return length( pa - ba*h ) - r;
+}
 
 
 float noiseFunc(vec3 p) {
@@ -100,20 +125,22 @@ bool isInSmokeVolume(vec3 p)
     vec3 localizedP = p - center1;
     vec2 widthVector = vec2(0.6, 0.7);
     float h = 1.7;
-    float d1 = sdFlippedCone(localizedP, widthVector, h + abs(sin(iTime*0.25)));
+    float d1 = sdFlippedCone(localizedP, widthVector, h + abs(sin(iTime*0.25)) + (iTime-15));
 
     vec3 center2 = Volcano2.smokeStartPos;
     vec3 localizedP2 = p - center2;
     // mbe add own h per volcano smoke cloud, lets see
-    float d2 = sdFlippedCone(localizedP2, widthVector, h + abs(sin(iTime*0.25)));
+    float d2 = sdFlippedCone(localizedP2, widthVector, h + abs(sin(iTime*0.25))+ (iTime-15));
 
     vec3 center3 = Volcano3.smokeStartPos;
     vec3 localizedP3 = p-center3;
-    float d3 = sdFlippedCone(localizedP3, widthVector, h + abs(sin(iTime*0.25)));
+    float d3 = sdFlippedCone(localizedP3, widthVector, h + abs(sin(iTime*0.25))+ (iTime-15));
 
     return d1 < 0.0 || d2 < 0.0 || d3 < 0.0;
 
 }
+
+
 
 
 
@@ -182,12 +209,16 @@ vec2 mapScene(vec3 p)
     float volcano2 = parametricVolcanoFunc(p, Volcano2);
     float volcano3 = parametricVolcanoFunc(p, Volcano3);
 
+    float lits = sdCapsule(p, magma.pos, vec3(magma.pos.x, magma.pos.y+2.0, magma.pos.z), 1.5);
+
     vec2 v1 = vec2(volcano1, 1.0); // 1 volcano matID
     vec2 v2 = vec2(volcano2, 1.0);
     vec2 v3 = vec2(volcano3, 1.0);
+    vec2 lit = vec2(lits, 3.0);
 
     vec2 scene = (v1.x < v2.x) ? v1 : v2;
     scene = scene.x < v3.x ? scene : v3;
+    scene = scene.x < lit.x ? scene : lit;
 
     return scene;
 }
@@ -229,7 +260,7 @@ float softShadow(vec3 ro, vec3 rd, float mint, float maxt, float k)
 {
     float res = 1.0;
     float t = mint;
-    for (int i = 0; i < 32 && t < maxt; i++) // might go for higher count on release
+    for (int i = 0; i < 32 && t < maxt; i++) // must go for higher count on release and smaller threshold as well as stepsize
     {
         float h = mapScene(ro + rd * t).x;
         if (h < 0.001)
@@ -256,9 +287,15 @@ vec3 computeLight(vec3 p, vec3 n, Material mat, Light light, vec3 ro, vec3 rd)
     float spec = pow(max(dot(halfV, reflectDir), 0.0), mat.shininess);
     float shadow = softShadow(p + 0.01*n, lightDir, 0.01, lightDist, 64.0);
 
+   float distance = length(light.pos - p);
+   float attenuation = 1.0 / (light.constant + light.linear* distance + light.quadratic * (distance*distance));
+
     vec3 ambient  = light.ambient  * mat.ambient;
     vec3 diffuse  = light.diffuse  * mat.diffuse * diff * shadow;
     vec3 specular = light.specular * mat.specular * spec * shadow;
+
+    diffuse *= attenuation;
+    specular *= attenuation;
     return ambient + diffuse + specular;
 
 }
@@ -335,25 +372,7 @@ vec3 computeVolumetricEffects(vec3 ro, vec3 rd)
 void main()
 {
 
-        vec3 baseRO = vec3(0.0, 1.0, 5.0);
-
-        Material obsidian = Material(
-        vec3(0.05375,0.05,0.06625),
-        vec3(0.18275,0.17,0.22525),
-        vec3(0.332741,0.328634,0.346435),
-        22.4);
-
-        Light magma = Light(
-        vec3(6.0+cos(iTime), 5.0, 2.0+sin(iTime)),
-        vec3(1.0, 0.1, 0.1),
-        vec3(1.0, 0.1, 0.1),
-        vec3(1.0, 1.0, 1.0));
-
-        Light vanilla = Light(
-        vec3(0.0, 6.0, 2.0),
-        vec3(1.0, 1.0, 1.0),
-        vec3(1.0, 1.0, 1.0),
-        vec3(1.0, 1.0, 1.0));
+    vec3 baseRO = vec3(0.0, 1.0, 9.0);   
 
     vec2 uv = (gl_FragCoord.xy * 2.0 - iResolution.xy) / iResolution.y;
     vec3 ro = calculateRO(iTime, 7.0 ,1.0);
@@ -368,13 +387,17 @@ void main()
 
     float t = marchRay(ro, rd, hitPos, matID);
         // first we try to get a better geometry
+
+        /*
+
         if (matID == 1.0) {
         vec3 n = estimateNormal(hitPos);
         col = visualizeNormals(n, vec3(0.7,0.7,0.7));
 
         }
+        */
 
-        /*
+        
         if (matID > 0.0)
         {
         vec3 n = estimateNormal(hitPos);
@@ -384,12 +407,17 @@ void main()
             col += obsidian.ambient +  (lit - obsidian.ambient);
             //col = vec3(0.3, 0.1, 0.05);
         }
+        if(matID == 3.0)
+        {
+            col += vec3(0.7, 0.1, 0.1);
+        }
     }
-    */
-
-
+    
+    vec3 finalCol = col;
     vec3 volCol = computeVolumetricEffects(ro,rd);
-    vec3 finalCol = mix(col, volCol, 0.5);
+    finalCol = mix(col, volCol, 0.5);
+    
+    
     //vec3 finalCol = col;
     finalCol = pow(finalCol, vec3(1.0 / 2.2)); // linear gamma to get closer to shadertoy looks, seems to work OK
     fragColor = vec4(vec3(finalCol), 1.0);

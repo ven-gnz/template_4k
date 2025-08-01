@@ -1,5 +1,5 @@
 #define SAMPLE_RATE 11025
-#define BUF_SIZE (SAMPLE_RATE * 32)
+#define BUF_SIZE (SAMPLE_RATE * 90)
 static short audio[BUF_SIZE];
 
 #include <stdlib.h>
@@ -12,7 +12,7 @@ float beatDuration = 60.0f / bpm;
 
 float fract(float x) { return x - floorf(x); }
 
-float noise(float t) {
+float whiteNoise(float t) {
     return fract(sinf(t * 1234.567f) * 43758.5453f) * 2.0f - 1.0f;
 }
 
@@ -22,20 +22,31 @@ float osc(float t, float f) {
 }
 
 float pad(float t, float baseFreq) {
+
+    float wobble = sinf(t * 2.0f * 3.14159f * 0.2f) * 0.05f + 1.0f;
+    float f1 = baseFreq * wobble;
+    float f2 = baseFreq * 1.5f * wobble;
+    float f3 = baseFreq * 2.0f * wobble;
+
     return 0.25f * (
-        osc(t, baseFreq) +
-        osc(t, baseFreq * 1.5f) +
-        osc(t, baseFreq * 2.0f)
+        osc(t, f1) +
+        osc(t, f2) +
+        osc(t, f3)
         );
 }
 
-float hiss(float t) {
 
-    float freq = 4000.0f;          // lower frequency hiss
-    float modFreq = 0.2f;          // very slow amplitude modulation (5 sec period)
-    float noiseVal = noise(t * freq);
+float hiss(float t) {
+    float freq = 4000.0f;
+    float modFreq = 0.1f;          
+    float noiseVal = whiteNoise(t * freq);
     float amp = (sinf(t * 6.2831f * modFreq) * 0.5f + 0.5f) * 0.3f;
     return noiseVal * amp;
+}
+
+float lerp(float a, float b, float t)
+{
+    return a + (b - a) * t;
 }
 
 
@@ -43,11 +54,20 @@ void fillAudio() {
     for (int i = 0; i < BUF_SIZE; ++i) {
         float t = (float)i / SAMPLE_RATE;
         int currentBeat = (int)(t / beatDuration);
-
-        float baseFreq = 55.0f;
-        float sample = pad(t, baseFreq);
+        float sample = 0.0f;
         float mixed = sample;
-        if (currentBeat >= 20 && currentBeat <= 28) {
+        float basePadFreq = 40.0;
+
+        if (currentBeat >= 4 && currentBeat <= 16)
+        {
+            mixed += pad(t, basePadFreq);
+        }
+        if (currentBeat > 16)
+        {
+            mixed += hiss(t);
+        }
+
+        if (currentBeat >= 28 && currentBeat < 36) {
             mixed += hiss(t);
         }
         
