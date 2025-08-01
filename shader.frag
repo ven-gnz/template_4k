@@ -60,7 +60,7 @@ Volcano (
     vec3(2.75, 1.1, 3.35), // this is the big one so maybe put the lava here
     vec3(2.75, 2.2, 3.35),
     3.33,
-    14 );
+    23 );
 
 const Volcano Volcano3 =
 Volcano (
@@ -68,7 +68,7 @@ Volcano (
     vec3(1.1,  1.1, -4.0),
     vec3(1.1,  2.2, -4.6),
     3.33,
-    7 );
+    17 );
 
 
  const Volcano Volcano4 =
@@ -227,7 +227,7 @@ float noisyBox(vec3 p, vec3 b, float t)
     float base = sdBox(p, b);
 
     float bumps = 0.0;
-    float freq = 1.0; // lowered from 3.0, might be too granular for 4k
+    float freq = 1.0; // lowered from 3.0, 1.0 might be too granular for 4k due to normal approx, and cheap lighting ops
     float amp = 0.2;
 
     /*

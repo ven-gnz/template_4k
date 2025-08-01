@@ -36,11 +36,11 @@ float pad(float t, float baseFreq) {
 }
 
 
-float hiss(float t) {
+float hiss(float t, float amplitudeScale) {
     float freq = 4000.0f;
     float modFreq = 0.1f;          
     float noiseVal = whiteNoise(t * freq);
-    float amp = (sinf(t * 6.2831f * modFreq) * 0.5f + 0.5f) * 0.3f;
+    float amp = (sinf(t * 6.2831f * modFreq) * 0.5f + 0.5f) * amplitudeScale;
     return noiseVal * amp;
 }
 
@@ -59,11 +59,21 @@ float wind(float t) {
     
 }
 
+float clamp(float x, float minVal, float maxVal) {
+    if (x < minVal) return minVal;
+    else if (x > maxVal) return maxVal;
+    else return x;
+}
+
 
 void fillAudio() {
     for (int i = 0; i < BUF_SIZE; ++i) {
         float t = (float)i / SAMPLE_RATE;
         int currentBeat = (int)(t / beatDuration);
+
+        float fadeStart = 60.0f;
+        float fadeDuration = 5.0f;
+
         float sample = 0.0f;
         float mixed = 0.0f;
         if (currentBeat < 90)
@@ -75,19 +85,24 @@ void fillAudio() {
 
         //mid point of intro, display fogs
         if (currentBeat >= 28 && currentBeat < 36) {
-            mixed += hiss(t);
+            mixed += hiss(t, 0.3);
         }
 
-        //finale - lift magma and remove lot of attenuation
+        // Midpoint madness with lighting change
         if (currentBeat >= 90 && currentBeat <= 94)
         {
             mixed += pad(t, basePadFreq);
         }
-        if (currentBeat > 94 && currentBeat < 104)
+        if (currentBeat > 94)
         {
-            mixed += hiss(t);
+            mixed += hiss(t, 0.3);
         }
 
+        if (t >= fadeStart)
+        {
+            float fade = 1.0f - clamp((t - fadeStart) / fadeDuration, 0.0f, 1.0f);
+            mixed *= fade;
+        }
         
         if (mixed > 1.0f) mixed = 1.0f;
         if (mixed < -1.0f) mixed = -1.0f;
