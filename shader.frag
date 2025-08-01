@@ -135,20 +135,20 @@ bool isInSmokeVolume(vec3 p)
     vec3 localizedP = p - center1;
     vec2 widthVector = vec2(0.6, 0.7);
     float h = 1.7;
-    float d1 = sdFlippedCone(localizedP, widthVector, h + abs(sin(iTime*Volcano1.seed)) + (iTime-15));
+    float d1 = sdFlippedCone(localizedP, widthVector, h + abs(sin(iTime*0.25)) + (iTime-15));
 
     vec3 center2 = Volcano2.smokeStartPos;
     vec3 localizedP2 = p - center2;
     // mbe add own h per volcano smoke cloud, lets see
-    float d2 = sdFlippedCone(localizedP2, widthVector, h + abs(sin(iTime*Volcano2.seed))+ (iTime-15));
+    float d2 = sdFlippedCone(localizedP2, widthVector, h + abs(sin(iTime*0.25))+ (iTime-15));
 
     vec3 center3 = Volcano3.smokeStartPos;
     vec3 localizedP3 = p-center3;
-    float d3 = sdFlippedCone(localizedP3, widthVector, h + abs(sin(iTime*Volcano3.seed))+ (iTime-15));
+    float d3 = sdFlippedCone(localizedP3, widthVector, h + abs(sin(iTime*0.25))+ (iTime-15));
 
     vec3 center4 = Volcano4.smokeStartPos;
     vec3 localizedP4 = p-center4;
-    float d4 = sdFlippedCone(localizedP4, vec2(0.3, 0.3), h + abs(sin(iTime*Volcano4.seed))+ (iTime-15));
+    float d4 = sdFlippedCone(localizedP4, vec2(0.3, 0.3), h + abs(sin(iTime*0.25))+ (iTime-15));
 
     return d1 < 0.0 || d2 < 0.0 || d3 < 0.0 || d4 < 0.0;
 
@@ -214,6 +214,37 @@ float parametricVolcanoFunc(vec3 p,
 
 }
 
+float sdBox( vec3 p, vec3 b )
+{
+  vec3 q = abs(p) - b;
+  return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
+}
+
+
+float noisyBox(vec3 p, vec3 b, float t)
+{
+
+    float base = sdBox(p, b);
+
+    float bumps = 0.0;
+    float freq = 3.0;
+    float amp = 0.2;
+
+    // Add layered sine bumps or fake spheres
+    for (int i = 0; i < 3; ++i) {
+        vec3 q = p * freq + vec3(i * 13.1); // offset freq per layer
+        bumps += sin(q.x) * sin(q.y) * sin(q.z);
+        freq *= 1.8;
+        amp *= 0.5;
+    }
+
+
+    bumps = bumps * 0.1;
+    return base + bumps;
+
+    
+}
+
 
 
 vec2 mapScene(vec3 p)
@@ -223,16 +254,20 @@ vec2 mapScene(vec3 p)
     float volcano2 = parametricVolcanoFunc(p, Volcano2);
     float volcano3 = parametricVolcanoFunc(p, Volcano3);
     float volcano4 = parametricVolcanoFunc(p, Volcano4);
-    
+
+    vec3 boxCenter = vec3(0.0, -2.0, 0.0);
+    float groundBox = noisyBox(p-boxCenter, vec3(30.0, 0.5, 30.0), iTime);
 
     vec2 v1 = vec2(volcano1, 1.0); // 1 volcano matID
     vec2 v2 = vec2(volcano2, 1.0);
     vec2 v3 = vec2(volcano3, 1.0);
     vec2 v4 = vec2(volcano4, 1.0);
+    vec2 ground = vec2(groundBox, 1.0);
 
     vec2 scene = (v1.x < v2.x) ? v1 : v2;
     scene = scene.x < v3.x ? scene : v3;
     scene = scene.x < v4.x ? scene : v4;
+    scene = scene.x < ground.x ? scene : ground;
 
     return scene;
 }
@@ -245,7 +280,7 @@ float marchRay(vec3 ro, vec3 rd, out vec3 hitPos, out float matID)
         vec3 p = ro + rd * t;
         vec2 scene = mapScene(p);
         float d = scene.x;
-        if (d < 0.001)
+        if (d < 0.0005)
         {
             hitPos = p;
             matID = scene.y;
@@ -260,7 +295,7 @@ float marchRay(vec3 ro, vec3 rd, out vec3 hitPos, out float matID)
 
 vec3 estimateNormal(vec3 p)
 {
-    float eps = 0.005;
+    float eps = 0.0005;
     vec2 e = vec2(1.0, -1.0) * eps;
     return normalize(
         e.xyy * mapScene(p + e.xyy).x +
@@ -321,7 +356,7 @@ vec3 computeLight(vec3 p, vec3 n, Material mat, Light light, vec3 ro, vec3 rd)
 vec3 calculateRO(float t, float r, float h)
 {
 
-    float angle = 0.2*t;
+    float angle = (t < 60.0) ? t * 0.25 : 60.0 * 0.25;
     float x = cos(angle)*r;
     float y = h + sin(t);
     float z = sin(angle)*r;
@@ -405,10 +440,11 @@ void main()
 
 
 
-    if(iTime > 12) // SYNC WITH AUDIO -> 45 ish
+    if(iTime > 30)
     {
 
     magma.attenuation = vec3(0.4f, 0.0007f, 0.000003);
+    magma.pos.y = 6.0f;
     
     }
 
@@ -445,6 +481,12 @@ void main()
     vec3 finalCol = col;
     vec3 volCol = computeVolumetricEffects(ro,rd);
     finalCol = mix(col, volCol, 0.5);
+
+    // Fade to black after 60s
+    float fadeStart = 60.0;
+    float fadeDuration = 5.0;
+    float fadeT = clamp((iTime - fadeStart) / fadeDuration, 0.0, 1.0);
+    finalCol *= (1.0 - fadeT);
     
     
     //vec3 finalCol = col;

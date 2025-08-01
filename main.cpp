@@ -8,8 +8,8 @@
 #include "shader.inl"
 #include "audio.inl"
 
-#define XRES 1280
-#define YRES 720
+#define XRES 1920
+#define YRES 1080
 // 1920 1080 for RELEASE
 
 // can also try : 2560x1440 OR 4830x2160
