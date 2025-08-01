@@ -227,21 +227,25 @@ float noisyBox(vec3 p, vec3 b, float t)
     float base = sdBox(p, b);
 
     float bumps = 0.0;
-    float freq = 3.0;
+    float freq = 1.0; // lowered from 3.0, might be too granular for 4k
     float amp = 0.2;
 
-    // Add layered sine bumps or fake spheres
+    /*
+    frequency controls how many bumps per sine phase, amplitude the amplitude of the sin. 
+    Higher base freq was needed here to fix the jaggy look, the geometry was too detailed to be approximated by the normal function and or soft shadows.
+    q changes the sampling point between layers, to mimic get suitable approximation of volume. Good stuff.
+
+    */
     for (int i = 0; i < 3; ++i) {
-        vec3 q = p * freq + vec3(i * 13.1); // offset freq per layer
+        vec3 q = p * freq + vec3(i * 13.1);
         bumps += sin(q.x) * sin(q.y) * sin(q.z);
         freq *= 1.8;
         amp *= 0.5;
     }
 
 
-    bumps = bumps * 0.1;
+    bumps = bumps * 0.2;
     return base + bumps;
-
     
 }
 
